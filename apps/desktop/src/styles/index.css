@@ -1,0 +1,194 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/plus-jakarta-sans';
+
+/*
+ * Sonora design system — CSS layer.
+ * Values mirror packages/ui/src/index.ts. Theme + accent are switched at
+ * runtime by setting CSS variables on <html> (see src/lib/theme.ts).
+ */
+:root {
+  color-scheme: dark;
+  --bg: #08080b;
+  --bg-elevated: #0e0e13;
+  --surface: #131319;
+  --surface-hover: #1e1e27;
+  --surface-active: #26262f;
+  --border: rgba(255, 255, 255, 0.07);
+  --text-primary: #f6f6fa;
+  --text-secondary: #9a9aa8;
+  --text-muted: #6e6e7c;
+  --overlay: rgba(4, 4, 6, 0.72);
+  --danger: #ff5c6c;
+  --success: #3ddc97;
+  --warning: #ffb547;
+  --accent: #ff7a45;
+  --accent-strong: #ff905f;
+  --accent-on: #1a0b04;
+  --accent-soft: rgba(255, 122, 69, 0.16);
+  --backdrop: 58, 44, 70;
+  --shadow-card: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
+  --shadow-pop: 0 18px 50px -12px rgba(0, 0, 0, 0.75);
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f4f4f7;
+  --bg-elevated: #ffffff;
+  --surface: #ffffff;
+  --surface-hover: #ececf1;
+  --surface-active: #e2e2e9;
+  --border: rgba(10, 10, 20, 0.08);
+  --text-primary: #121218;
+  --text-secondary: #555563;
+  --text-muted: #7c7c8a;
+  --overlay: rgba(20, 20, 28, 0.45);
+  --shadow-card: 0 8px 24px -10px rgba(20, 20, 40, 0.25);
+  --shadow-pop: 0 18px 50px -12px rgba(20, 20, 40, 0.35);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+  --color-line: var(--border);
+  --color-fg: var(--text-primary);
+  --color-fg-2: var(--text-secondary);
+  --color-fg-3: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-on-accent: var(--accent-on);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-overlay: var(--overlay);
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Plus Jakarta Sans Variable', 'Inter Variable', system-ui, sans-serif;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+  --ease-soft: var(--ease-out-soft);
+  --animate-fade-in: fade-in 0.28s var(--ease-out-soft) both;
+  --animate-rise: rise 0.36s var(--ease-out-soft) both;
+  --animate-sheet-up: sheet-up 0.34s var(--ease-out-soft) both;
+  --animate-pop: pop 0.18s var(--ease-out-soft) both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes shimmer {
+  from { background-position: -400px 0; }
+  to { background-position: 400px 0; }
+}
+@keyframes eq {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  :root[data-compact='true'] {
+    font-size: 15px;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: default;
+  }
+  ::selection {
+    background: var(--accent-soft);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  input::placeholder {
+    color: var(--text-muted);
+  }
+  /* Slim, unobtrusive scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  }
+  :root[data-theme='light'] * {
+    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  }
+}
+
+@layer components {
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface) 0px, var(--surface-hover) 160px, var(--surface) 320px);
+    background-size: 800px 100%;
+    animation: var(--animate-shimmer);
+  }
+  .eq-bar {
+    width: 3px;
+    border-radius: 2px;
+    background: var(--accent);
+    transform-origin: bottom;
+    animation: eq 0.9s ease-in-out infinite;
+  }
+  .eq-bar:nth-child(2) { animation-delay: -0.3s; }
+  .eq-bar:nth-child(3) { animation-delay: -0.6s; }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

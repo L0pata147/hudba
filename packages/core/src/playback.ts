@@ -34,6 +34,7 @@ export const playerStore = createPlayerStore({
   resolveSource,
   storage: lazyStorage,
   getCrossfade: () => preferencesStore.getState().crossfade,
+  getPreload: () => preferencesStore.getState().gapless,
   onTrackStart(song, context) {
     historyStore.getState().record(song, context);
     if (!preferencesStore.getState().scrobble) return;

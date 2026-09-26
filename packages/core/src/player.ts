@@ -69,6 +69,8 @@ export interface PlayerDeps {
   onTrackStart?(song: Song, context: PlaybackContext | null): void;
   /** Called once per queue entry when the scrobble threshold is reached. */
   onTrackListened?(song: Song, context: PlaybackContext | null): void;
+  /** Whether to preload the next track (near-gapless). Defaults to true. */
+  getPreload?(): boolean;
   /** Crossfade seconds (read on every transition so settings apply live). */
   getCrossfade?(): number;
   /** Error reporter for UI toasts. */
@@ -433,7 +435,7 @@ export function createPlayerStore(deps: PlayerDeps): PlayerStore {
         const nextItem: QueueItem | undefined = nextIdx >= 0 && nextIdx !== state.queue.index ? state.queue.items[nextIdx] : undefined;
 
         // Preload the following track ~20 s before the end.
-        if (nextItem && dur > 0 && remaining < 20 && preloadedUid !== nextItem.uid) {
+        if (nextItem && (deps.getPreload?.() ?? true) && dur > 0 && remaining < 20 && preloadedUid !== nextItem.uid) {
           preloadedUid = nextItem.uid;
           const eng = engine();
           if (eng?.preload) deps.resolveSource(nextItem.song).then((src) => eng.preload?.(src)).catch(() => undefined);
