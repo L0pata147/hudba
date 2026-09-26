@@ -1,0 +1,18 @@
+node_modules/
+dist/
+build/
+coverage/
+*.log
+.DS_Store
+.env
+.env.local
+# Tauri
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+# Expo
+apps/mobile/.expo/
+apps/mobile/ios/
+apps/mobile/android/
+# Playwright
+apps/desktop/test-results/
+apps/desktop/playwright-report/

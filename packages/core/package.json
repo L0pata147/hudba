@@ -1,0 +1,23 @@
+{
+  "name": "@sonora/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@sonora/api": "workspace:*",
+    "@sonora/types": "workspace:*",
+    "@sonora/utils": "workspace:*",
+    "@tanstack/react-query": "^5.90.0",
+    "zustand": "^5.0.8"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.0",
+    "react": "19.2.3"
+  }
+}

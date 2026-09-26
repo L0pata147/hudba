@@ -1,0 +1,26 @@
+{
+  "name": "sonora",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Sonora \u2014 a modern Navidrome client for desktop and mobile",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @sonora/desktop dev",
+    "build": "pnpm --filter @sonora/desktop build",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "lint": "pnpm -r --parallel lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "pnpm --filter @sonora/desktop test:e2e",
+    "tauri": "pnpm --filter @sonora/desktop tauri",
+    "mobile": "pnpm --filter @sonora/mobile start"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vitest": "^4.0.0"
+  },
+  "type": "module"
+}

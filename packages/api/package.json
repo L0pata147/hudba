@@ -1,0 +1,13 @@
+{
+  "name": "@sonora/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@sonora/types": "workspace:*",
+    "@sonora/utils": "workspace:*"
+  }
+}
