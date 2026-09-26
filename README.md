@@ -6,6 +6,16 @@ It talks to Navidrome through its Subsonic / OpenSubsonic API. There is no fake 
 
 <p align="center"><img src="apps/desktop/public/sonora.svg" width="96" alt="Sonora logo"></p>
 
+## Download (no developer tools needed)
+
+Every push builds installers on GitHub and publishes them as the **“Latest build”** pre-release
+(repository → *Releases*):
+
+- **Android:** open the release on your phone, download `Sonora-Android.apk`, open it and allow installing from this source.
+- **Windows:** download `Sonora-Setup-Windows.exe` and run it (SmartScreen: *More info → Run anyway*, the installer is not code-signed).
+
+Then log in with your Navidrome address, e.g. `192.168.0.103:4533` on your home network.
+
 ---
 
 ## What it does
