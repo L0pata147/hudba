@@ -7,7 +7,7 @@ import { CollectionHeader } from '../../src/components/Collection';
 import { FavoriteToggle } from '../../src/components/FavoriteToggle';
 import { BackButton, TopInset } from '../../src/components/Screen';
 import { ErrorState, RowsSkeleton, T } from '../../src/components/ui';
-import { playCollection, useSongSheet } from '../../src/actions';
+import { playCollection, useCollectionSheet, useSongSheet } from '../../src/actions';
 
 export default function ArtistScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -15,6 +15,7 @@ export default function ArtistScreen() {
   const top = useArtistTopSongs(artist.data);
   const { isCurrent, isPlaying } = useContextPlayState('artist', id);
   const openSong = useSongSheet();
+  const openCollection = useCollectionSheet();
   if (artist.isError) return <TopInset><BackButton /><View style={{ marginTop: 48 }}><ErrorState error={artist.error} onRetry={() => void artist.refetch()} /></View></TopInset>;
   if (!artist.data) return <TopInset><BackButton /><View style={{ marginTop: 64 }}><RowsSkeleton /></View></TopInset>;
   const a = artist.data;
@@ -34,6 +35,7 @@ export default function ArtistScreen() {
           playing={isPlaying}
           onPlay={() => (isCurrent ? playerStore.getState().togglePlay() : void playCollection('artist', a.id, a.name))}
           onShuffle={() => void playCollection('artist', a.id, a.name, true)}
+          onMore={() => openCollection('artist', a.id, a.name, a.coverArtId)}
           extra={<FavoriteToggle kind="artist" item={a} />}
         />
         {songs.length ? (

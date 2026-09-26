@@ -1,12 +1,14 @@
 import { useRouter } from 'expo-router';
-import { Disc3, Download, Heart, HeartOff, ListEnd, ListPlus, ListStart, Trash2, UserRound, CircleMinus } from 'lucide-react-native';
+import { Disc3, Download, Heart, HeartOff, ListEnd, ListPlus, ListStart, Radio, Trash2, UserRound, CircleMinus } from 'lucide-react-native';
 import type { Playlist, PlaybackContext, Song } from '@sonora/types';
 import {
   downloadsStore,
   favoriteOverridesStore,
   fetchCollectionSongs,
   playerStore,
+  radioStore,
   resolveStarred,
+  type RadioSeed,
   toast,
   usePlaylistMutations,
   useToggleFavorite,
@@ -22,6 +24,16 @@ export async function playCollection(kind: 'album' | 'playlist' | 'artist', id: 
     if (!songs.length) return;
     const context: PlaybackContext = { type: kind, id, name };
     playerStore.getState().playSongs(songs, shuffle ? Math.floor(Math.random() * songs.length) : 0, { context, shuffle: shuffle || undefined });
+  } catch (err) {
+    toast.error(describeError(err));
+  }
+}
+
+/** Starts Radio; the Radio tab shows what it is playing. */
+export async function startRadio(seed: RadioSeed, song?: Song) {
+  try {
+    await radioStore.getState().start(seed, { song });
+    toast.success(`Radio started from “${seed.name}”`);
   } catch (err) {
     toast.error(describeError(err));
   }
@@ -46,6 +58,11 @@ export function useSongSheet() {
     const rec = downloadsStore.getState().records[song.id];
     const actions: SheetAction[] = [
       ...(extra.actions ?? []),
+      {
+        label: 'Start radio',
+        icon: <Radio color={ic} size={22} />,
+        onPress: () => void startRadio({ kind: 'song', id: song.id, name: song.title, subtitle: song.artist, coverArtId: song.coverArtId }, song),
+      },
       { label: 'Play next', icon: <ListStart color={ic} size={22} />, onPress: () => queueSongs([song], 'next') },
       { label: 'Add to queue', icon: <ListEnd color={ic} size={22} />, onPress: () => queueSongs([song], 'end') },
       { label: 'Add to playlist', icon: <ListPlus color={ic} size={22} />, onPress: () => openAdd([song]) },
@@ -80,6 +97,7 @@ export function useCollectionSheet() {
       subtitle: kind[0]!.toUpperCase() + kind.slice(1),
       coverArtId,
       actions: [
+        { label: 'Start radio', icon: <Radio color={ic} size={22} />, onPress: () => void startRadio({ kind, id, name, coverArtId }) },
         { label: 'Play next', icon: <ListStart color={ic} size={22} />, onPress: () => void load().then((s) => queueSongs(s, 'next')).catch((e: unknown) => toast.error(describeError(e))) },
         { label: 'Add to queue', icon: <ListEnd color={ic} size={22} />, onPress: () => void load().then((s) => queueSongs(s, 'end')).catch((e: unknown) => toast.error(describeError(e))) },
         { label: 'Add to playlist', icon: <ListPlus color={ic} size={22} />, onPress: () => void load().then(openAdd).catch((e: unknown) => toast.error(describeError(e))) },

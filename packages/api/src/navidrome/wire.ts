@@ -74,6 +74,10 @@ export interface WireSong {
   discNumber?: number;
   year?: number;
   genre?: string;
+  genres?: { name: string }[];
+  moods?: string[];
+  bpm?: number;
+  userRating?: number;
   duration?: number;
   bitRate?: number;
   size?: number;

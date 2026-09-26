@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router';
 import clsx from 'clsx';
-import { Home, Library, Search, Heart } from 'lucide-react';
+import { Home, Library, Search, Heart, Radio } from 'lucide-react';
 
 const items = [
   { to: '/', label: 'Home', icon: Home, end: true },
   { to: '/search', label: 'Search', icon: Search },
   { to: '/library', label: 'Library', icon: Library },
+  { to: '/radio', label: 'Radio', icon: Radio },
   { to: '/favorites', label: 'Favorites', icon: Heart },
 ];
 

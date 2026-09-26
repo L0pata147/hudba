@@ -25,6 +25,7 @@ import {
   persistableQueue,
   previousIndex,
   removeItem,
+  removeUpcoming,
   setShuffle,
   updateSongs,
   type QueueState,
@@ -113,6 +114,11 @@ export interface PlayerState {
   cycleRepeat(): void;
   playNext(songs: readonly Song[]): void;
   addToQueue(songs: readonly Song[]): void;
+  /** Appends automatically chosen songs (Radio). They are not marked manual. */
+  appendRadio(songs: readonly Song[]): void;
+  /** Drops upcoming Radio-generated items (manual items are kept). */
+  clearUpcomingRadio(): void;
+  setContext(context: PlaybackContext | null): void;
   removeFromQueue(uid: string): void;
   moveInQueue(from: number, to: number): void;
   clearQueue(): void;
@@ -347,6 +353,22 @@ export function createPlayerStore(deps: PlayerDeps): PlayerStore {
         const wasEmpty = !get().queue.items.length;
         set({ queue: append(get().queue, songs) });
         if (wasEmpty) loadCurrent(true);
+      },
+
+      appendRadio(songs) {
+        if (!songs.length) return;
+        const wasEmpty = !get().queue.items.length;
+        set({ queue: append(get().queue, songs, false, true) });
+        if (wasEmpty) loadCurrent(true);
+      },
+
+      clearUpcomingRadio() {
+        set({ queue: removeUpcoming(get().queue, (i) => Boolean(i.radio)) });
+        preloadedUid = null;
+      },
+
+      setContext(context) {
+        set({ context });
       },
 
       removeFromQueue(uid) {

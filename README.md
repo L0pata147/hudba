@@ -32,6 +32,7 @@ Then log in with your Navidrome address, e.g. `192.168.0.103:4533` on your home 
 | **Queue** | Now playing / up next, drag & drop reordering, remove, jump to, clear, add album/playlist/artist to queue, Play next, Add to end, persistent across navigation & restarts, synced to the server (`savePlayQueue`) to resume on other devices |
 | **Playlists** | Create, rename (with description), delete, add songs, remove songs, reorder (drag & drop), play, shuffle — all synced with Navidrome |
 | **Favorites** | Songs, albums, artists; optimistic UI everywhere (rows, cards, player, favorites page) with rollback on error |
+| **Radio** | Endless “song radio” from a song, album, artist, playlist or genre (⋯ menu → *Start radio*, or the Radio page). Weighted, non-repeating recommendations from your own library; Familiar / Balanced / Adventurous direction, *Steer from this song*, learns from skips and completed songs, survives restarts — see [Radio](#radio) |
 | **History** | Per-track history on the device (Navidrome only exposes album-level "recently played"); plays are scrobbled to the server |
 | **Offline** | Library metadata cache (IndexedDB / AsyncStorage) for instant start-up and offline browsing; song downloads for offline playback (Cache Storage on desktop/web, app sandbox files on mobile) |
 | **Settings** | Account (user, server, version, log out), Playback (quality, crossfade, gapless preloading, default volume, scrobbling, queue sync), Appearance (dark / light / system, 6 accent colours, compact mode), Storage (cache size, clear cache, downloads, history), keyboard shortcuts, About (version, Navidrome compatibility, licenses) |
@@ -207,6 +208,34 @@ No credentials or server addresses are compiled into the source.
 | Server sync | play queue + position | Navidrome `savePlayQueue` | debounced; restored on a device with an empty queue |
 
 **Sync:** playlists, favorites and play counts live on the server; every mutation goes to the server (with optimistic UI and rollback). Downloads are addressed by song id, so they survive metadata refreshes.
+
+## Radio
+
+Navidrome has no "radio" or "instant mix" endpoint. What it does offer, and what Sonora uses:
+
+| Source | Endpoint | Notes |
+| --- | --- | --- |
+| Similar songs to a song | `getSimilarSongs` | Last.fm-backed when configured, otherwise Navidrome falls back to its own library metadata (verified on 0.64: a Metallica seed returns Metallica + Iron Maiden) |
+| Similar songs to an artist | `getSimilarSongs2` | same as above |
+| Songs of a genre | `getRandomSongs?genre=` | random sample, used to broaden the pool |
+| Whole library sample | `getRandomSongs` | last-resort widening and "surprise" picks |
+| Favorites | `getStarred2` | cached for 10 minutes |
+| Seed songs | `getSong` / `getAlbum` / `getPlaylist` / `getArtist` | once per radio start |
+
+`getArtistInfo2.similarArtist` is used nowhere in Radio because it is empty without external agents.
+
+**Algorithm** (`packages/core/src/radio/`):
+
+1. **Profile** — the seed songs become a taste profile: artists, genres, moods, median BPM and year (`buildProfile`).
+2. **Candidates** — a pool is filled from the sources above: server-similar songs for the newest *anchor* (the last completed song), then same-genre songs and favorites, then a library sample if the pool is still thin. The pool is reused across refills, so a refill usually costs 0–2 requests.
+3. **Scoring** (`scoreSong`):
+   `0.30·artist + 0.25·genre + 0.15·metadata(mood, BPM, year) + 0.15·server-similar + 0.15·preference(favorite, rating, play count) + feedback`.
+   Artist = seed artist 1.0, related artists (learnt from server similarity results) up to 0.7. Missing metadata is neutral, not a penalty.
+4. **Picking** (`pickCandidates`) — softmax-weighted random sampling without replacement. A quality window keeps picks close to the best candidates, the same artist may not repeat within 2/3/4 picks (Familiar/Balanced/Adventurous) and never the same album twice in a row. With 3/12/25 % probability a pick is a *surprise* from a wider window.
+5. **No repeats** — excluded, from strict to relaxed: everything already queued in this session, songs played in the last 3 h; then the last ~60 picks / 30 min; finally only what is queued. Relaxing only happens when a small library runs out.
+6. **Refill** — when fewer than 3 radio songs are left, 8 more are appended in the background (never blocking playback). Radio songs are marked in the queue; songs you add with *Play next* / *Add to queue* are never removed or reordered.
+7. **Learning** — a quick skip (< 30 s) lowers that artist's weight; finishing a song raises it and gently drifts the profile towards it (15/30/50 % by direction), so long sessions evolve without losing the seed.
+8. **Robustness** — offline/timeouts: playback continues, one toast, retries with backoff (5 s → 2 min). Session state (seed, profile, picked songs, feedback) is persisted and resumes after a restart. Playing anything else ends the radio; *Stop radio* keeps the current song and your manual queue items.
 
 ## Known limitations (honest TODOs)
 

@@ -11,6 +11,7 @@ import {
   ListStart,
   Pencil,
   Play,
+  Radio,
   Shuffle,
   Trash2,
   UserRound,
@@ -22,11 +23,13 @@ import {
   fetchCollectionSongs,
   platform,
   playerStore,
+  radioStore,
   resolveStarred,
   toast,
   usePlaylistMutations,
   useToggleFavorite,
 } from '@sonora/core';
+import type { RadioSeed } from '@sonora/core';
 import { describeError } from '@sonora/api';
 import { pluralize } from '@sonora/utils';
 import { openMenuFrom, useUi, type MenuItemDef } from './ui-store';
@@ -43,6 +46,16 @@ export async function playCollection(kind: CollectionKind, id: string, name: str
     const context: PlaybackContext = { type: kind, id, name };
     const start = opts.shuffle ? Math.floor(Math.random() * songs.length) : (opts.startIndex ?? 0);
     playerStore.getState().playSongs(songs, start, { context, shuffle: opts.shuffle ?? playerStore.getState().queue.shuffled });
+  } catch (err) {
+    toast.error(describeError(err));
+  }
+}
+
+/** Starts Radio and opens the Radio page. Errors (offline, empty seed) become toasts. */
+export async function startRadio(seed: RadioSeed, song?: Song): Promise<void> {
+  try {
+    await radioStore.getState().start(seed, { song });
+    toast.success(`Radio started from “${seed.name}”`);
   } catch (err) {
     toast.error(describeError(err));
   }
@@ -118,6 +131,12 @@ export function useItemMenus() {
   const openSongMenu = useCallback(
     (e: React.MouseEvent | React.KeyboardEvent, song: Song, extra: { playlist?: Playlist; index?: number; queueUid?: string } = {}) => {
       const items: MenuItemDef[] = [
+        {
+          id: 'radio',
+          label: 'Start radio',
+          icon: <Radio />,
+          onSelect: () => void startRadio({ kind: 'song', id: song.id, name: song.title, subtitle: song.artist, coverArtId: song.coverArtId }, song),
+        },
         { id: 'next', label: 'Play next', icon: <ListStart />, onSelect: () => queueSongs([song], 'next') },
         { id: 'end', label: 'Add to queue', icon: <ListEnd />, onSelect: () => queueSongs([song], 'end') },
         { id: 'playlist', label: 'Add to playlist…', icon: <ListPlus />, onSelect: () => openDialog({ type: 'add-to-playlist', songs: [song] }) },
@@ -157,6 +176,12 @@ export function useItemMenus() {
       const items: MenuItemDef[] = [
         { id: 'play', label: 'Play', icon: <Play />, onSelect: () => void playCollection('album', album.id, album.name) },
         { id: 'shuffle', label: 'Shuffle', icon: <Shuffle />, onSelect: () => void playCollection('album', album.id, album.name, { shuffle: true }) },
+        {
+          id: 'radio',
+          label: 'Start radio',
+          icon: <Radio />,
+          onSelect: () => void startRadio({ kind: 'album', id: album.id, name: album.name, subtitle: album.artist, coverArtId: album.coverArtId }),
+        },
         { id: 'next', label: 'Play next', icon: <ListStart />, onSelect: () => void queueCollection('album', album.id, 'next') },
         { id: 'end', label: 'Add to queue', icon: <ListEnd />, onSelect: () => void queueCollection('album', album.id, 'end') },
         {
@@ -187,6 +212,12 @@ export function useItemMenus() {
         [
           { id: 'play', label: 'Play', icon: <Play />, onSelect: () => void playCollection('artist', artist.id, artist.name) },
           { id: 'shuffle', label: 'Shuffle', icon: <Shuffle />, onSelect: () => void playCollection('artist', artist.id, artist.name, { shuffle: true }) },
+          {
+            id: 'radio',
+            label: 'Start radio',
+            icon: <Radio />,
+            onSelect: () => void startRadio({ kind: 'artist', id: artist.id, name: artist.name, coverArtId: artist.coverArtId }),
+          },
           { id: 'end', label: 'Add to queue', icon: <ListEnd />, onSelect: () => void queueCollection('artist', artist.id, 'end') },
           favoriteItem('artist', artist),
         ],
@@ -203,6 +234,12 @@ export function useItemMenus() {
         [
           { id: 'play', label: 'Play', icon: <Play />, onSelect: () => void playCollection('playlist', playlist.id, playlist.name) },
           { id: 'shuffle', label: 'Shuffle', icon: <Shuffle />, onSelect: () => void playCollection('playlist', playlist.id, playlist.name, { shuffle: true }) },
+          {
+            id: 'radio',
+            label: 'Start radio',
+            icon: <Radio />,
+            onSelect: () => void startRadio({ kind: 'playlist', id: playlist.id, name: playlist.name, coverArtId: playlist.coverArtId }),
+          },
           { id: 'next', label: 'Play next', icon: <ListStart />, onSelect: () => void queueCollection('playlist', playlist.id, 'next') },
           { id: 'end', label: 'Add to queue', icon: <ListEnd />, onSelect: () => void queueCollection('playlist', playlist.id, 'end') },
           ...(songs ? downloadItems(songs) : []),

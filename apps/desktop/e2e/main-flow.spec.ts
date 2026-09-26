@@ -144,3 +144,34 @@ test('state survives a reload (session, queue, volume)', async ({ page, isMobile
   // Still signed in and on the same page (hash route survives reload).
   await expect(page.getByRole('table')).toBeVisible();
 });
+
+test('song radio: start from a song, keeps a queue, can be stopped', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'covered by desktop run');
+  await login(page);
+  await page.goto(`/#/search?q=${encodeURIComponent(query)}`);
+  await page.getByRole('region', { name: 'Albums' }).getByRole('link').first().click();
+  await expect(page).toHaveURL(/#\/album\//);
+  await expect(page.getByRole('table')).toHaveCount(1);
+  const row = page.getByRole('table').getByRole('row').filter({ has: page.getByRole('cell') }).first();
+  const title = (await row.locator('[role="cell"] .truncate').first().textContent())?.trim() ?? '';
+  await row.getByRole('button', { name: `More options for ${title}` }).click();
+  await page.getByRole('menuitem', { name: 'Start radio' }).click();
+
+  const player = page.getByRole('region', { name: 'Player' });
+  await expect(player).toContainText(title);
+  await expect(player.getByRole('link', { name: 'Radio' })).toBeVisible();
+
+  await player.getByRole('link', { name: 'Radio' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
+  const upNext = page.getByRole('region', { name: 'Up next on radio' });
+  await expect(upNext.getByRole('listitem').first()).toBeVisible();
+  expect(await upNext.getByRole('listitem').count()).toBeGreaterThanOrEqual(3);
+
+  // Skipping keeps the radio going.
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(upNext.getByRole('listitem').first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'Stop radio' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Radio');
+  await expect(player.getByRole('link', { name: 'Radio' })).toHaveCount(0);
+});

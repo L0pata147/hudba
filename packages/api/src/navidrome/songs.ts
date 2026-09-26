@@ -39,6 +39,30 @@ export function songsApi(http: SubsonicHttpClient) {
       return (res.randomSongs?.song ?? []).map(mapSong);
     },
 
+    /**
+     * `getSimilarSongs` — songs similar to a song, album or artist id.
+     * Navidrome answers from external agents (Last.fm…) and, without them,
+     * from its own library metadata. May legitimately return an empty list.
+     */
+    async similar(id: string, opts: { count?: number } = {}, req?: RequestOptions): Promise<Song[]> {
+      const res = await http.request<SubsonicEnvelope & { similarSongs?: { song?: WireSong[] } }>(
+        'getSimilarSongs',
+        { id, count: opts.count ?? 50 },
+        req,
+      );
+      return (res.similarSongs?.song ?? []).map(mapSong);
+    },
+
+    /** `getSimilarSongs2` — songs similar to an artist (ID3 based). */
+    async similarToArtist(artistId: string, opts: { count?: number } = {}, req?: RequestOptions): Promise<Song[]> {
+      const res = await http.request<SubsonicEnvelope & { similarSongs2?: { song?: WireSong[] } }>(
+        'getSimilarSongs2',
+        { id: artistId, count: opts.count ?? 50 },
+        req,
+      );
+      return (res.similarSongs2?.song ?? []).map(mapSong);
+    },
+
     async byGenre(genre: string, opts: { count?: number; offset?: number } = {}, req?: RequestOptions): Promise<Song[]> {
       const res = await http.request<SubsonicEnvelope & { songsByGenre?: { song?: WireSong[] } }>(
         'getSongsByGenre',

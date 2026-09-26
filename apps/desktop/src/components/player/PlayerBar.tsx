@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import clsx from 'clsx';
-import { ChevronUp, ListMusic, Maximize2, MicVocal } from 'lucide-react';
+import { ChevronUp, ListMusic, Maximize2, MicVocal, Radio } from 'lucide-react';
 import { useCurrentItem, usePlayer } from '@sonora/core';
 import { Artwork } from '../ui/Artwork';
 import { IconButton } from '../ui/Button';
@@ -43,7 +43,13 @@ export function PlayerBar() {
                 ) : (
                   song.artist
                 )}
-                {context?.name && <span className="text-fg-3"> · {context.name}</span>}
+                {context?.type === 'radio' ? (
+                  <Link to="/radio" className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-accent-soft px-1.5 py-px align-middle text-[11px] font-bold text-accent hover:underline">
+                    <Radio className="size-3" /> Radio
+                  </Link>
+                ) : (
+                  context?.name && <span className="text-fg-3"> · {context.name}</span>
+                )}
               </div>
             </div>
             <FavoriteButton kind="song" item={song} size="sm" />

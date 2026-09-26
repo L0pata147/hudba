@@ -2,7 +2,7 @@ import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 // expo-router vendors react-navigation; the default tab bar lives here.
 import { BottomTabBar } from 'expo-router/build/react-navigation/bottom-tabs';
-import { Heart, House, Library, Search } from 'lucide-react-native';
+import { Heart, House, Library, Radio, Search } from 'lucide-react-native';
 import { useCurrentItem } from '@sonora/core';
 import { useTheme } from '../../src/theme';
 import { MiniPlayer } from '../../src/components/MiniPlayer';
@@ -32,6 +32,7 @@ export default function TabsLayout() {
         <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color }) => <House color={color} size={24} /> }} />
         <Tabs.Screen name="search" options={{ title: 'Search', tabBarIcon: ({ color }) => <Search color={color} size={24} /> }} />
         <Tabs.Screen name="library" options={{ title: 'Library', tabBarIcon: ({ color }) => <Library color={color} size={24} /> }} />
+        <Tabs.Screen name="radio" options={{ title: 'Radio', tabBarIcon: ({ color }) => <Radio color={color} size={24} /> }} />
         <Tabs.Screen name="favorites" options={{ title: 'Favorites', tabBarIcon: ({ color }) => <Heart color={color} size={24} /> }} />
       </Tabs>
       <ToastHost bottom={hasItem ? 150 : 96} />

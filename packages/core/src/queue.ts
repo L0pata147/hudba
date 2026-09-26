@@ -17,10 +17,11 @@ export interface QueueState {
 export const EMPTY_QUEUE: QueueState = { items: [], index: -1, shuffled: false, originalOrder: null };
 
 let uidCounter = 0;
-export function createQueueItem(song: Song, manual = false): QueueItem {
+export function createQueueItem(song: Song, manual = false, radio = false): QueueItem {
   uidCounter = (uidCounter + 1) % 1_000_000;
   const item: QueueItem = { uid: `${uidCounter.toString(36)}${randomString(6)}`, song };
   if (manual) item.manual = true;
+  if (radio) item.radio = true;
   return item;
 }
 
@@ -110,10 +111,10 @@ export function insertNext(q: QueueState, songs: readonly Song[]): QueueState {
   };
 }
 
-/** Appends songs to the end of the queue ("Add to queue"). */
-export function append(q: QueueState, songs: readonly Song[], manual = true): QueueState {
+/** Appends songs to the end of the queue ("Add to queue", or Radio refills with `radio`). */
+export function append(q: QueueState, songs: readonly Song[], manual = true, radio = false): QueueState {
   if (!songs.length) return q;
-  const newItems = songs.map((s) => createQueueItem(s, manual));
+  const newItems = songs.map((s) => createQueueItem(s, manual && !radio, radio));
   return {
     ...q,
     items: [...q.items, ...newItems],
@@ -148,6 +149,18 @@ export function moveQueueItem(q: QueueState, from: number, to: number): QueueSta
   const items = moveItem(q.items, from, to);
   const index = currentUid ? items.findIndex((i) => i.uid === currentUid) : q.index;
   return { ...q, items, index };
+}
+
+/** Removes upcoming items (after the current one) matching `predicate`. */
+export function removeUpcoming(q: QueueState, predicate: (item: QueueItem) => boolean): QueueState {
+  if (q.index < 0) return q;
+  const drop = new Set(q.items.slice(q.index + 1).filter(predicate).map((i) => i.uid));
+  if (!drop.size) return q;
+  return {
+    ...q,
+    items: q.items.filter((i) => !drop.has(i.uid)),
+    originalOrder: q.originalOrder ? q.originalOrder.filter((u) => !drop.has(u)) : null,
+  };
 }
 
 /** Removes everything after the current item. */

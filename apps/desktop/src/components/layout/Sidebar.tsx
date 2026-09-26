@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router';
 import clsx from 'clsx';
-import { Heart, History, Home, Library, ListMusic, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings, DownloadCloud } from 'lucide-react';
+import { Heart, History, Home, Library, ListMusic, PanelLeftClose, PanelLeftOpen, Plus, Radio, Search, Settings, DownloadCloud } from 'lucide-react';
 import { preferencesStore, usePlaylists, usePreferences, useContextPlayState } from '@sonora/core';
 import type { Playlist } from '@sonora/types';
 import { Logo } from '../brand/Logo';
@@ -79,6 +79,7 @@ export function Sidebar() {
         <NavItem to="/" end icon={<Home />} label="Home" collapsed={collapsed} />
         <NavItem to="/search" icon={<Search />} label="Search" collapsed={collapsed} />
         <NavItem to="/library" icon={<Library />} label="Library" collapsed={collapsed} />
+        <NavItem to="/radio" icon={<Radio />} label="Radio" collapsed={collapsed} />
       </nav>
 
       <div className="flex min-h-0 flex-1 flex-col rounded-lg bg-bg-elevated">

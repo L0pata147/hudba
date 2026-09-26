@@ -8,6 +8,8 @@ export * from './favorites';
 export * from './downloads';
 export * from './toasts';
 export * from './playback';
+export * from './radio/index';
+export * from './radio-instance';
 export * from './queries';
 export * from './hooks';
 export * from './bootstrap';

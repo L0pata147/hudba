@@ -107,6 +107,12 @@ export async function installMockNavidrome(page: Page) {
       case 'getArtistInfo2': return ok({ artistInfo2: { biography: 'A mock artist used for end-to-end tests.' } });
       case 'getTopSongs': return ok({ topSongs: {} });
       case 'getGenres': return ok({ genres: { genre: [{ value: 'Ambient', songCount: songs.length, albumCount: albums.length }] } });
+      case 'getSimilarSongs': {
+        const seed = songs.find((x) => x.id === p.get('id'));
+        return ok({ similarSongs: { song: songs.filter((x) => seed && x.artistId === seed.artistId && x.id !== seed.id) } });
+      }
+      case 'getSimilarSongs2':
+        return ok({ similarSongs2: { song: songs.filter((x) => x.artistId === p.get('id')) } });
       case 'getSongsByGenre': case 'getRandomSongs': return ok({ songsByGenre: { song: songs }, randomSongs: { song: songs } });
       case 'search3': {
         const q = (p.get('query') ?? '').toLowerCase();

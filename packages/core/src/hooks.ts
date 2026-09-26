@@ -9,6 +9,8 @@ import { historyStore, type HistoryState } from './history';
 import { downloadsStore, type DownloadsState } from './downloads';
 import { toastStore } from './toasts';
 import { currentItem } from './queue';
+import { radioStore } from './radio-instance';
+import type { RadioState } from './radio/engine';
 
 export function useSession<T>(selector: (s: SessionState) => T): T {
   return useStore(sessionStore, selector);
@@ -67,4 +69,8 @@ export function useDownloads<T>(selector: (s: DownloadsState) => T): T {
 
 export function useToasts() {
   return useStore(toastStore, (s) => s.toasts);
+}
+
+export function useRadio<T>(selector: (s: RadioState) => T): T {
+  return useStore(radioStore, selector);
 }

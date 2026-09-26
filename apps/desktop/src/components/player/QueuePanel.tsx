@@ -2,9 +2,10 @@ import clsx from 'clsx';
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, ListX, X } from 'lucide-react';
+import { GripVertical, ListX, Power, Radio, Sparkles, X } from 'lucide-react';
 import type { QueueItem } from '@sonora/types';
-import { playerStore, upcomingItems, usePlayer, usePlayerShallow, currentItem } from '@sonora/core';
+import { playerStore, radioStore, upcomingItems, usePlayer, usePlayerShallow, currentItem, useRadio } from '@sonora/core';
+import { Link } from 'react-router';
 import { formatDuration } from '@sonora/utils';
 import { Artwork } from '../ui/Artwork';
 import { Button, IconButton } from '../ui/Button';
@@ -79,6 +80,7 @@ function QueueRow({
           <div className="truncate text-[12.5px] text-fg-2">{song.artist}</div>
         </div>
       </button>
+      {item.radio && <Sparkles className="size-3 shrink-0 text-accent/70 group-hover:hidden" aria-label="Chosen by Radio" />}
       <span className="text-[12px] text-fg-3 tabular-nums group-hover:hidden">{formatDuration(song.duration)}</span>
       {!current && (
         <IconButton label={`Remove ${song.title} from queue`} size="xs" className="hidden group-hover:inline-flex group-focus-within:inline-flex max-md:inline-flex" onClick={() => playerStore.getState().removeFromQueue(item.uid)}>
@@ -94,6 +96,8 @@ export function QueuePanel({ onClose, className }: { onClose?: () => void; class
   const { queue, context } = usePlayerShallow((s) => ({ queue: s.queue, context: s.context }));
   const now = currentItem(queue);
   const upcoming = upcomingItems(queue);
+  const radioSession = useRadio((s) => s.session);
+  const radioActive = Boolean(radioSession && context?.type === 'radio' && context.id === radioSession.id);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -122,6 +126,17 @@ export function QueuePanel({ onClose, className }: { onClose?: () => void; class
           )}
         </div>
       </div>
+      {radioActive && radioSession && (
+        <div className="mx-4 mb-2 flex items-center gap-2 rounded-md bg-accent-soft px-3 py-2 text-[13px]">
+          <Radio className="size-4 shrink-0 text-accent" />
+          <Link to="/radio" className="min-w-0 flex-1 truncate font-semibold hover:underline">
+            Radio: {radioSession.seed.name}
+          </Link>
+          <button type="button" onClick={() => radioStore.getState().stop()} className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold text-fg-2 hover:bg-surface-active hover:text-fg" aria-label="Stop radio">
+            <Power className="size-3.5" /> Stop
+          </button>
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
         {!now ? (
           <EmptyState title="Your queue is empty" message="Play an album or playlist, or add songs with “Add to queue”." />

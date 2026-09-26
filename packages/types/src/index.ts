@@ -134,6 +134,13 @@ export interface Song {
   discNumber?: number;
   year?: number;
   genre?: string;
+  /** All genres (OpenSubsonic `genres`), falls back to `[genre]`. */
+  genres?: string[];
+  /** Mood tags (OpenSubsonic `moods`), e.g. "Chill", "Energetic". */
+  moods?: string[];
+  bpm?: number;
+  /** User rating 1–5 (Subsonic `userRating`), undefined when not rated. */
+  userRating?: number;
   /** seconds */
   duration: number;
   bitRate?: number;
@@ -238,7 +245,7 @@ export type RepeatMode = 'off' | 'all' | 'one';
 
 /** Where a queue item came from — used for "Playing from …" labels. */
 export interface PlaybackContext {
-  type: 'album' | 'artist' | 'playlist' | 'favorites' | 'search' | 'songs' | 'genre' | 'queue';
+  type: 'album' | 'artist' | 'playlist' | 'favorites' | 'search' | 'songs' | 'genre' | 'queue' | 'radio';
   id?: ID;
   name?: string;
 }
@@ -249,6 +256,8 @@ export interface QueueItem {
   song: Song;
   /** true if inserted via "Play next"/"Add to queue" rather than the original context */
   manual?: boolean;
+  /** Added automatically by Radio (can be regenerated; manual items never are). */
+  radio?: boolean;
 }
 
 export type PlaybackStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'buffering' | 'ended' | 'error';

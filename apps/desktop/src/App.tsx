@@ -20,6 +20,7 @@ const FavoritesPage = lazy(() => import('./pages/Favorites').then((m) => ({ defa
 const HistoryPage = lazy(() => import('./pages/History').then((m) => ({ default: m.HistoryPage })));
 const DownloadsPage = lazy(() => import('./pages/Downloads').then((m) => ({ default: m.DownloadsPage })));
 const GenrePage = lazy(() => import('./pages/Genre').then((m) => ({ default: m.GenrePage })));
+const RadioPage = lazy(() => import('./pages/Radio').then((m) => ({ default: m.RadioPage })));
 const SettingsPage = lazy(() => import('./pages/Settings').then((m) => ({ default: m.SettingsPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFound').then((m) => ({ default: m.NotFoundPage })));
 
@@ -41,6 +42,7 @@ const router = createHashRouter([
       { path: 'history', element: page(<HistoryPage />) },
       { path: 'downloads', element: page(<DownloadsPage />) },
       { path: 'genre/:name', element: page(<GenrePage />) },
+      { path: 'radio', element: page(<RadioPage />) },
       { path: 'settings', element: page(<SettingsPage />) },
       { path: '*', element: page(<NotFoundPage />) },
     ],

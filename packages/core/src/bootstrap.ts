@@ -4,6 +4,7 @@ import { preferencesStore } from './preferences';
 import { historyStore } from './history';
 import { downloadsStore, resumeDownloads } from './downloads';
 import { playerStore } from './playback';
+import { radioStore } from './radio-instance';
 
 /**
  * Configures platform adapters and rehydrates every persisted store.
@@ -18,11 +19,16 @@ export async function bootstrapSonora(config: Partial<PlatformConfig>): Promise<
     historyStore.persist.rehydrate(),
     downloadsStore.persist.rehydrate(),
     playerStore.persist.rehydrate(),
+    radioStore.persist.rehydrate(),
   ]);
   // First launch: apply the default volume preference.
   if (!(await Promise.resolve(config.storage?.getItem('sonora.player')))) {
     playerStore.setState({ volume: preferencesStore.getState().defaultVolume });
   }
   sessionStore.setState({ hydrated: true });
-  if (sessionStore.getState().session) resumeDownloads();
+  if (sessionStore.getState().session) {
+    resumeDownloads();
+    // Continue a radio session that was running before the restart.
+    radioStore.getState().ensureFilled();
+  }
 }
