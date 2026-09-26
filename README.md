@@ -1,0 +1,235 @@
+# Sonora
+
+**Sonora** is a modern, artwork-first music player for your self-hosted [Navidrome](https://www.navidrome.org/) server — on desktop (Windows, macOS, Linux via Tauri), in the browser, and on iOS / Android (Expo / React Native).
+
+It talks to Navidrome through its Subsonic / OpenSubsonic API. There is no fake data: everything you see comes from your server.
+
+<p align="center"><img src="apps/desktop/public/sonora.svg" width="96" alt="Sonora logo"></p>
+
+---
+
+## What it does
+
+| Area | Features |
+| --- | --- |
+| **Connection** | Configurable server URL (validated & normalized, `http://` warning for public hosts), token authentication, "remember server", persistent session, server capability detection (OpenSubsonic extensions) |
+| **Home** | Quick-access tiles, Recently played, Jump back in (on-device history), Recently added, Favorite albums, Your playlists, Most played, Artists you listen to, Rediscover (random) |
+| **Library** | Playlists, Artists, Albums (sortable: name, artist, recently added/played, most played, favorites, random), Songs (paged, virtualized), Genres. Grid / List / Compact views. Works with libraries of tens of thousands of items (virtualized grids & lists, paged API calls) |
+| **Artist** | Hero image, album count, biography (if the server has it), Play / Shuffle, popular tracks (server `getTopSongs`, falls back to your own play counts), discography, similar artists |
+| **Album** | Large cover with dominant-colour gradient, artist, year, track count, total length, genres, Play / Shuffle / Favorite / Add to playlist, tracklist — click a track to play |
+| **Search** | Debounced, cancellable search with Top result, Artists, Albums, Songs, Playlists; genre browser when idle |
+| **Player** | Play/pause, next/previous (restart after 3 s), seek, volume, mute, shuffle, repeat (off / all / one), progress, duration, loading & buffering states, stream-interruption recovery, crossfade (desktop/web), next-track preloading, lyrics (synced when available), OS media keys / Media Session, lock-screen controls & background audio (mobile) |
+| **Queue** | Now playing / up next, drag & drop reordering, remove, jump to, clear, add album/playlist/artist to queue, Play next, Add to end, persistent across navigation & restarts, synced to the server (`savePlayQueue`) to resume on other devices |
+| **Playlists** | Create, rename (with description), delete, add songs, remove songs, reorder (drag & drop), play, shuffle — all synced with Navidrome |
+| **Favorites** | Songs, albums, artists; optimistic UI everywhere (rows, cards, player, favorites page) with rollback on error |
+| **History** | Per-track history on the device (Navidrome only exposes album-level "recently played"); plays are scrobbled to the server |
+| **Offline** | Library metadata cache (IndexedDB / AsyncStorage) for instant start-up and offline browsing; song downloads for offline playback (Cache Storage on desktop/web, app sandbox files on mobile) |
+| **Settings** | Account (user, server, version, log out), Playback (quality, crossfade, gapless preloading, default volume, scrobbling, queue sync), Appearance (dark / light / system, 6 accent colours, compact mode), Storage (cache size, clear cache, downloads, history), keyboard shortcuts, About (version, Navidrome compatibility, licenses) |
+| **UX** | Desktop: collapsible sidebar, persistent player bar, queue side panel, immersive now-playing view, context menus, keyboard shortcuts. Mobile: bottom navigation, mini player (tap / swipe up to expand, swipe sideways to skip), full-screen player (swipe down to close), bottom sheets, touch-sized targets |
+| **Quality** | Skeleton loading everywhere, empty & error states with Retry, toasts, visible focus, ARIA labels / roles, focus traps & `inert` background for modals, `prefers-reduced-motion` support |
+
+### Keyboard shortcuts (desktop / web)
+
+| Key | Action |
+| --- | --- |
+| `Space` | Play / pause (when focus is not on a button or field) |
+| `←` / `→` | Seek −/+ 10 s |
+| `Shift` + `←` / `→` | Previous / next track |
+| `Ctrl/⌘` + `K` | Search |
+| `Ctrl/⌘` + `L` | Focus search |
+| `M` | Mute |
+| `Q` | Toggle queue |
+| `Esc` | Close menus, dialogs, full-screen player |
+
+---
+
+## Architecture
+
+```text
+apps/
+  desktop/          React + Vite + Tailwind CSS 4 web app, wrapped by Tauri 2 (src-tauri/)
+  mobile/           Expo (SDK 57) + expo-router React Native app
+packages/
+  types/            Domain types: User, Artist, Album, Song, Playlist, QueueItem, PlaybackState, ServerConfig, SearchResult, …
+  utils/            md5, URL validation, formatting, shuffle/move/debounce helpers
+  api/              Navidrome (Subsonic/OpenSubsonic) client
+    src/navidrome/  client, auth, albums, artists, songs, playlists, search, favorites, scrobbling,
+                    playqueue, genres, lyrics, media, mappers, errors, wire types
+  core/             Platform-independent business logic shared by desktop & mobile:
+                    queue (pure functions), player state machine, session, preferences, history,
+                    favorites (optimistic), downloads, toasts, TanStack Query hooks, bootstrap
+  ui/               Design tokens (colours, accents, spacing, radii, type, motion) + colour helpers
+```
+
+**Layering**
+
+```text
+UI components (desktop: React DOM / mobile: React Native)
+        │  use hooks only — never fetch() directly
+        ▼
+@sonora/core   — TanStack Query hooks (server state) + Zustand stores (client state)
+        │        player/queue logic drives an abstract AudioEngine
+        ▼
+@sonora/api    — typed Navidrome client:  navidrome.albums.list({ type: 'newest' })
+        ▼
+Navidrome /rest/* (Subsonic 1.16.1 + OpenSubsonic)
+```
+
+Platform-specific code is isolated behind small adapters configured once at start-up (`configurePlatform` / `bootstrapSonora`):
+
+| Adapter | Desktop / web | Mobile |
+| --- | --- | --- |
+| `AudioEngine` | `HtmlAudioEngine` — two `<audio>` elements (preload + equal-power crossfade), retry on interrupted streams, Media Session | `ExpoAudioEngine` — expo-audio (AVPlayer / Media3), background audio, lock-screen controls |
+| `storage` | `localStorage` (never throws) | AsyncStorage |
+| `secureStorage` | app-private WebView storage (see Security) | expo-secure-store (Keychain / Keystore) |
+| `offline` | Cache Storage + object URLs | expo-file-system (`Paths.document/sonora-offline`) |
+| query cache persistence | IndexedDB | AsyncStorage |
+
+Everything else — API client, types, auth, player state, queue logic, playlist/favorite logic, caching policy — is shared.
+
+---
+
+## Requirements
+
+- **Node.js ≥ 20** (22 recommended) and **pnpm 10** (`corepack enable`)
+- A **Navidrome** server (≥ 0.49; tested against **0.64.2**) reachable from the device
+- Desktop builds: **Rust** (stable) and the [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/)
+  (Linux: `libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev`; Windows: WebView2; macOS: Xcode CLT)
+- Mobile builds: Android Studio and/or Xcode, or an [EAS](https://expo.dev/eas) account
+
+## Installation
+
+```bash
+git clone <this repo> sonora && cd sonora
+corepack enable
+pnpm install
+```
+
+## Development
+
+```bash
+pnpm dev                 # web app on http://localhost:5173 (also the Tauri frontend)
+pnpm tauri dev           # native desktop window with hot reload
+pnpm mobile              # Expo dev server (use a development build, see below)
+
+pnpm typecheck           # strict TypeScript in every package
+pnpm test                # unit tests (Vitest)
+pnpm test:e2e            # Playwright E2E (desktop + mobile viewport)
+```
+
+### Desktop build (Tauri)
+
+```bash
+pnpm tauri:build                          # installers for the current OS
+pnpm tauri build --bundles deb            # e.g. only a .deb on Linux
+```
+
+Output: `apps/desktop/src-tauri/target/release/bundle/` (`.msi`/`.exe` on Windows, `.dmg`/`.app` on macOS, `.deb`/`.rpm`/`.AppImage` on Linux). The CI workflow builds all three platforms. The plain web build (`pnpm build` → `apps/desktop/dist`) can be hosted on any static server.
+
+### Mobile build (Expo)
+
+The app uses native modules (expo-audio, secure store, file system), so it needs a **development build** — Expo Go is not sufficient for background audio.
+
+```bash
+cd apps/mobile
+npx expo prebuild                 # generates ios/ and android/
+npx expo run:android              # or: npx expo run:ios
+# release builds
+npx eas build --platform android  # or ios
+```
+
+---
+
+## Navidrome setup
+
+1. Install Navidrome ([docs](https://www.navidrome.org/docs/installation/)). Quick test server:
+   ```bash
+   docker run -d -p 4533:4533 -v /path/to/music:/music:ro -v navidrome-data:/data deluan/navidrome:latest
+   ```
+2. Open `http://<host>:4533`, create the admin user, let the scan finish.
+3. In Sonora enter the server URL (`https://music.example.com`, or `192.168.1.10:4533` on your LAN — Sonora assumes `http://` for LAN/localhost and `https://` otherwise), your username and password.
+
+Useful Navidrome options:
+
+| Option | Why |
+| --- | --- |
+| HTTPS via a reverse proxy | Strongly recommended for anything reachable from the internet |
+| `ND_LASTFM_*` / `ND_SPOTIFY_*` agents | Artist images, biographies, "Popular" tracks, similar artists |
+| `ND_ENABLETRANSCODINGCONFIG`, ffmpeg installed | Lower streaming qualities in Settings (server-side transcoding) |
+| `ND_ENABLEDOWNLOADS=true` (default) | Needed for offline downloads |
+| Lyrics embedded in files or `.lrc` sidecars | Shown in the lyrics view (synced when timestamps exist) |
+
+**CORS:** the web/desktop client calls `/rest/*` directly. Navidrome sends `Access-Control-Allow-Origin: *` for these endpoints. Sonora deliberately uses only CORS "simple requests" (GET, and form-encoded POST for long lists), so no preflight configuration is needed. If you put Navidrome behind a proxy, make sure it does not strip these headers.
+
+## Configuration
+
+Runtime configuration is done in the app (login screen + Settings). Optional build-time variables (see `.env.example`):
+
+| Variable | App | Purpose |
+| --- | --- | --- |
+| `VITE_DEFAULT_SERVER_URL` | desktop / web — put it in `apps/desktop/.env.local` | Pre-fills the server field on the login screen |
+| `EXPO_PUBLIC_DEFAULT_SERVER_URL` | mobile — put it in `apps/mobile/.env` | Same for mobile |
+| `TAURI_DEV_HOST` | desktop | Dev server host for Tauri on a physical device / network |
+| `SONORA_E2E_SERVER`, `SONORA_E2E_USER`, `SONORA_E2E_PASSWORD`, `SONORA_E2E_QUERY` | tests | Run the E2E suite against a real Navidrome instead of the built-in mock |
+| `PLAYWRIGHT_CHROMIUM_PATH` | tests | Use an existing Chromium binary |
+
+No credentials or server addresses are compiled into the source.
+
+---
+
+## Security
+
+- **Password never stored.** Login derives the Subsonic token `t = md5(password + salt)` with a random salt; only `{ username, salt, token }` is persisted. The password never leaves the login form and is never logged. Note that for the Subsonic API this token is still a *credential* (it authenticates API calls), so it is treated as a secret.
+- **Where the token lives:** mobile → iOS Keychain / Android Keystore (`expo-secure-store`, `AFTER_FIRST_UNLOCK`). Desktop → the Tauri WebView's app-private storage (per-user app data dir). Browser → `localStorage` of the Sonora origin. *TODO:* move the desktop token to the OS keychain via a Tauri keyring plugin.
+- **Media URLs carry auth parameters** (`u`, `t`, `s`) because `<audio>`, `<img>` and native players cannot send custom headers — this is inherent to the Subsonic API. They are never logged by Sonora; use HTTPS so they are not visible on the network.
+- **Server URL validation:** only `http(s)`, no embedded credentials, `/app` & `/rest` suffixes stripped. Plain `http://` to a non-LAN host shows a warning on the login screen and a banner in the app.
+- **Session isolation:** cache keys are scoped by server + user, the query cache and history are cleared on logout, and switching accounts never shows stale data.
+- **Tauri:** strict CSP (scripts only from the bundle), minimal capabilities (`core:default`, window state), single-instance.
+
+## Offline & cache design
+
+| Layer | What | Where | Policy |
+| --- | --- | --- | --- |
+| Metadata | albums, artists, playlists, favorites, genres, top songs | TanStack Query + IndexedDB (desktop) / AsyncStorage (mobile) | `offlineFirst`; stale after 5 min, kept 24 h in memory, persisted 7 days; clearable in Settings |
+| Artwork | cover art at fixed sizes (96/300/600/1000 px, ×2 on HiDPI) so the server resize cache is reused | HTTP cache (desktop/web), expo-image memory + disk cache (mobile) | stable URLs per session; lazy loading, placeholders |
+| Audio | downloaded songs | Cache Storage (desktop/web), app document directory (mobile) | explicit user action ("Download" in any ⋯ menu); played instead of streaming when present; interrupted downloads resume as queued on next launch |
+| Player | queue, position, volume, repeat/shuffle | app storage | restored paused at the same position after restart |
+| Server sync | play queue + position | Navidrome `savePlayQueue` | debounced; restored on a device with an empty queue |
+
+**Sync:** playlists, favorites and play counts live on the server; every mutation goes to the server (with optimistic UI and rollback). Downloads are addressed by song id, so they survive metadata refreshes.
+
+## Known limitations (honest TODOs)
+
+- **Crossfade on mobile** is not available: expo-audio exposes a single player without per-player volume ramps across tracks. Desktop/web crossfade works.
+- **Gapless:** the web engine preloads the next track (near-gapless). Sample-accurate gapless would require a Web Audio / native decoder pipeline.
+- **Mobile lock screen next/previous:** expo-audio's lock-screen controls expose play/pause and seek only. Next/previous on the lock screen would need `react-native-track-player`; the `AudioEngine` interface allows swapping the engine.
+- **Seeking in transcoded streams** (non-"Original" quality) depends on the server; Navidrome's `transcodeOffset` is not used yet.
+- **Playlist search** is client-side (the Subsonic API has no playlist search).
+- **Per-track listening history** is local to each device; the server only exposes album-level "recently played".
+- **Artwork colour extraction** is implemented on desktop/web (canvas); mobile uses the accent colour for gradients.
+- **Artist images** depend on the server's external agents (Last.fm/Spotify/Deezer); without them Navidrome serves a placeholder.
+- The mobile app was verified with strict type-checking and a production Metro/Hermes bundle; it has not been exercised on a physical device in this repository's CI.
+
+## Testing
+
+- **Unit (Vitest, `pnpm test`)** — queue operations & shuffle/unshuffle, player state machine (repeat, previous, scrobble thresholds, crossfade trigger, persistence/resume, error handling), md5 & URL validation, Navidrome client (mapping, parameters, media URLs, errors), authentication (token only, wrong password, network/timeout, non-Subsonic servers), session store (secure storage, restart), playlists (create/update/reorder/delete), search (library + playlists, diacritics).
+- **E2E (Playwright, `pnpm test:e2e`)** — *Login → Home → Search → Open album → Play song → Add to playlist → Open queue* on desktop and a mobile viewport, wrong-credential error, optimistic favorites, state after reload. Runs against an in-process mock Subsonic server by default, or a real server with `SONORA_E2E_SERVER=…`.
+
+## Troubleshooting
+
+| Problem | Fix |
+| --- | --- |
+| "Unable to reach …" on login | Check the URL and port (`:4533`), that the server runs, and that the device is on the same network/VPN. For LAN servers type `192.168.x.x:4533` (http is assumed). |
+| "This address does not look like a Navidrome server" | You are pointing at a different service or a proxy path; use the same URL you open Navidrome's web UI with (Sonora strips `/app`). |
+| Works in the browser but not in the desktop app on Windows/macOS | Some reverse proxies drop CORS headers — make sure `/rest/*` responses include `Access-Control-Allow-Origin`. |
+| Mixed content errors in the browser | An `https://` web deployment cannot call an `http://` server. Use HTTPS for the server or the desktop app. |
+| Android can't connect over http | Cleartext is enabled in `app.json` (`usesCleartextTraffic`); rebuild the dev client after changing native config. |
+| Lower quality settings have no effect | Transcoding requires ffmpeg on the server and a transcoding config in Navidrome. |
+| No "Popular" tracks / artist bios | Configure Last.fm (or Spotify) agents in Navidrome. Sonora falls back to your own play counts. |
+| Playback stops in the background on Android | Rebuild the development build after installing — background playback needs the expo-audio config plugin (`enableBackgroundPlayback`). |
+| Downloads fail | The Navidrome user needs the download permission (`ND_ENABLEDOWNLOADS`). |
+| Stale data after server changes | Pull to refresh (mobile) or Settings → Storage → Clear cache. |
+
+## License
+
+MIT for Sonora's own code. Third-party packages keep their licenses (see Settings → About).

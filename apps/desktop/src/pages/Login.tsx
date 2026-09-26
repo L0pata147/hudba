@@ -10,7 +10,7 @@ import { TextField } from '../components/ui/TextField';
 export function LoginPage() {
   const recent = useRecentServers();
   const last = recent[0];
-  const [serverUrl, setServerUrl] = useState(last?.url ?? '');
+  const [serverUrl, setServerUrl] = useState(last?.url ?? import.meta.env.VITE_DEFAULT_SERVER_URL ?? '');
   const [username, setUsername] = useState(last?.username ?? '');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);

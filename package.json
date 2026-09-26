@@ -10,13 +10,13 @@
   "scripts": {
     "dev": "pnpm --filter @sonora/desktop dev",
     "build": "pnpm --filter @sonora/desktop build",
-    "typecheck": "pnpm -r --parallel typecheck",
-    "lint": "pnpm -r --parallel lint",
+    "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "pnpm --filter @sonora/desktop test:e2e",
     "tauri": "pnpm --filter @sonora/desktop tauri",
-    "mobile": "pnpm --filter @sonora/mobile start"
+    "mobile": "pnpm --filter @sonora/mobile start",
+    "tauri:build": "pnpm --filter @sonora/desktop tauri build"
   },
   "devDependencies": {
     "typescript": "~5.9.3",

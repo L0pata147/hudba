@@ -48,7 +48,7 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string; 
 export default function LoginScreen() {
   const t = useTheme();
   const recent = useRecentServers();
-  const [serverUrl, setServerUrl] = useState(recent[0]?.url ?? '');
+  const [serverUrl, setServerUrl] = useState(recent[0]?.url ?? process.env.EXPO_PUBLIC_DEFAULT_SERVER_URL ?? '');
   const [username, setUsername] = useState(recent[0]?.username ?? '');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);

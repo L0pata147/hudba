@@ -10,6 +10,7 @@ import { Equalizer } from '../ui/PlayButton';
 import { Skeleton } from '../ui/Skeleton';
 import { useUi } from '../../lib/ui-store';
 import { useItemMenus } from '../../lib/actions';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 function NavItem({ to, icon, label, collapsed, end }: { to: string; icon: React.ReactNode; label: string; collapsed: boolean; end?: boolean }) {
   return (
@@ -57,7 +58,10 @@ function PlaylistLink({ playlist, collapsed }: { playlist: Playlist; collapsed: 
 }
 
 export function Sidebar() {
-  const collapsed = usePreferences((s) => s.sidebarCollapsed);
+  const preferCollapsed = usePreferences((s) => s.sidebarCollapsed);
+  // Tablets / narrow windows always get the compact rail.
+  const narrow = useMediaQuery('(max-width: 1023px)');
+  const collapsed = preferCollapsed || narrow;
   const playlists = usePlaylists();
   const openDialog = useUi((s) => s.openDialog);
   const navigate = useNavigate();
@@ -79,13 +83,13 @@ export function Sidebar() {
 
       <div className="flex min-h-0 flex-1 flex-col rounded-lg bg-bg-elevated">
         <div className={clsx('flex items-center gap-2 px-3 pt-3 pb-1', collapsed ? 'flex-col' : 'justify-between')}>
-          <IconButton
+          {!narrow && <IconButton
             label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             size="sm"
             onClick={() => preferencesStore.getState().set('sidebarCollapsed', !collapsed)}
           >
             {collapsed ? <PanelLeftOpen className="size-[18px]" /> : <PanelLeftClose className="size-[18px]" />}
-          </IconButton>
+          </IconButton>}
           {!collapsed && <span className="flex-1 text-[14px] font-bold text-fg-2">Your Library</span>}
           <IconButton label="Create playlist" size="sm" variant="solid" onClick={() => openDialog({ type: 'create-playlist' })}>
             <Plus className="size-[18px]" />

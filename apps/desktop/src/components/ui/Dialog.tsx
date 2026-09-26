@@ -15,6 +15,10 @@ function useFocusTrap(open: boolean, onClose: () => void) {
       Array.from(node?.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') ?? []).filter(
         (el) => !el.hasAttribute('disabled'),
       );
+    // Hide the app behind the modal from assistive tech and keyboard focus.
+    const root = document.getElementById('root');
+    root?.setAttribute('inert', '');
+    root?.setAttribute('aria-hidden', 'true');
     const first = node?.querySelector<HTMLElement>('[data-autofocus]') ?? focusables()[0];
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
@@ -38,6 +42,8 @@ function useFocusTrap(open: boolean, onClose: () => void) {
     document.addEventListener('keydown', onKey, true);
     return () => {
       document.removeEventListener('keydown', onKey, true);
+      root?.removeAttribute('inert');
+      root?.removeAttribute('aria-hidden');
       if (previous && document.contains(previous)) previous.focus();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

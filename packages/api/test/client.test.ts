@@ -4,7 +4,7 @@ import { mockServer } from './mock-server';
 
 const song = (id: string, extra: Record<string, unknown> = {}) => ({ id, title: `Song ${id}`, artist: 'A', artistId: 'ar1', duration: 100, ...extra });
 
-function client(handlers: Parameters<typeof mockServer>[0]['handlers']) {
+function client(handlers: NonNullable<Parameters<typeof mockServer>[0]>['handlers']) {
   const server = mockServer({ handlers });
   const nd: NavidromeClient = createNavidromeClient({
     session: {
