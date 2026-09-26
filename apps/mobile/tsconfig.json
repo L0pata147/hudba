@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM"],
+    "types": [],
+    "allowJs": false
+  },
+  "include": ["app", "src", "expo-env.d.ts"]
+}
