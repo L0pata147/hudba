@@ -41,7 +41,7 @@ function buildLibrary() {
 }
 
 /** 3 seconds of quiet 440 Hz tone as 8 kHz mono WAV. */
-function wav(): Buffer {
+export function wav(): Buffer {
   const rate = 8000, secs = 3, samples = rate * secs;
   const buf = Buffer.alloc(44 + samples * 2);
   buf.write('RIFF', 0); buf.writeUInt32LE(36 + samples * 2, 4); buf.write('WAVE', 8); buf.write('fmt ', 12);
@@ -53,7 +53,7 @@ function wav(): Buffer {
 
 const COVER = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><defs><linearGradient id="g" x2="1" y2="1"><stop offset="0" stop-color="#7B5CFF"/><stop offset="1" stop-color="#FF7A45"/></linearGradient></defs><rect width="300" height="300" fill="url(#g)"/></svg>`;
 
-export async function installMockNavidrome(page: Page) {
+export async function installMockNavidrome(page: Page, opts: { audioUrl?: string } = {}) {
   const albums = buildLibrary();
   const songs = albums.flatMap((a) => a.songs);
   const playlists: { id: string; name: string; comment?: string; songIds: string[] }[] = [];
@@ -76,7 +76,11 @@ export async function installMockNavidrome(page: Page) {
       route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ 'subsonic-response': { status: 'failed', version: '1.16.1', error: { code, message } } }) });
 
     if (endpoint === 'getCoverArt') return route.fulfill({ status: 200, contentType: 'image/svg+xml', headers: { 'access-control-allow-origin': '*' }, body: COVER });
-    if (endpoint === 'stream' || endpoint === 'download') return route.fulfill({ status: 200, contentType: 'audio/wav', headers: { 'access-control-allow-origin': '*' }, body: audio });
+    if (endpoint === 'stream' || endpoint === 'download') {
+      // Optionally hand audio off to a real HTTP server (e.g. one without CORS headers).
+      if (opts.audioUrl) return route.fulfill({ status: 302, headers: { location: opts.audioUrl, 'access-control-allow-origin': '*' } });
+      return route.fulfill({ status: 200, contentType: 'audio/wav', headers: { 'access-control-allow-origin': '*' }, body: audio });
+    }
 
     // Token auth check: t = md5(password + s) is verified in unit tests; here only the user is checked.
     if (p.get('u') !== MOCK_USER || !p.get('t') || !p.get('s')) return fail(40, 'Wrong username or password');

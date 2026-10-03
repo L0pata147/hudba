@@ -51,9 +51,19 @@ export const playerStore = createPlayerStore({
   },
 });
 
+let unsubscribeEqualizer: (() => void) | null = null;
+
 export function setAudioEngine(next: AudioEngine | null): void {
   engine = next;
+  unsubscribeEqualizer?.();
+  unsubscribeEqualizer = null;
   if (!next) return;
+  if (next.setEqualizer) {
+    next.setEqualizer(preferencesStore.getState().equalizer);
+    unsubscribeEqualizer = preferencesStore.subscribe((s, prev) => {
+      if (s.equalizer !== prev.equalizer) next.setEqualizer?.(s.equalizer);
+    });
+  }
   const s = playerStore.getState();
   next.setListener({
     onStatus: (status, error) => playerStore.getState().handleEngineStatus(status, error),

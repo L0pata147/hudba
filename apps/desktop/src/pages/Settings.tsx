@@ -115,6 +115,14 @@ export function SettingsPage() {
         <Row label="Default volume" description="Used on first launch and after resetting settings.">
           <Slider label="Default volume" value={prefs.defaultVolume * 100} max={100} step={5} valueText={`${Math.round(prefs.defaultVolume * 100)}%`} onChange={(v) => set('defaultVolume', v / 100)} className="w-40" />
         </Row>
+        <Row
+          label="Equalizer"
+          description={prefs.equalizer.enabled ? `On · ${prefs.equalizer.preset ?? 'Custom'}` : 'Off — 10-band graphic EQ with presets'}
+        >
+          <Button size="sm" variant="outline" onClick={() => openDialog({ type: 'equalizer' })}>
+            Open
+          </Button>
+        </Row>
         <Switch label="Scrobble plays" description="Report plays to Navidrome (play counts, Last.fm / ListenBrainz if configured on the server)." checked={prefs.scrobble} onChange={(v) => set('scrobble', v)} />
         <Switch label="Sync queue with server" description="Save your queue and position on the server so you can resume on another device." checked={prefs.syncQueue} onChange={(v) => set('syncQueue', v)} />
       </Section>

@@ -9,7 +9,7 @@
  */
 import { createStore, type Mutate, type StoreApi } from 'zustand/vanilla';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
-import type { PlaybackContext, PlaybackStatus, QueueItem, RepeatMode, Song } from '@sonora/types';
+import type { EqualizerSettings, PlaybackContext, PlaybackStatus, QueueItem, RepeatMode, Song } from '@sonora/types';
 import { clamp } from '@sonora/utils';
 import {
   EMPTY_QUEUE,
@@ -59,6 +59,8 @@ export interface AudioEngine {
   setMuted(muted: boolean): void;
   /** Hint to fetch the next track early (gapless-ish transitions). */
   preload?(src: string): void;
+  /** Applies equalizer settings. Engines without DSP support omit this. */
+  setEqualizer?(settings: EqualizerSettings): void;
   stop(): void;
 }
 

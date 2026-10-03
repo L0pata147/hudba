@@ -293,6 +293,17 @@ export type ViewMode = 'grid' | 'list' | 'compact';
 export type ThemeMode = 'dark' | 'light' | 'system';
 export type AccentColor = 'ember' | 'aqua' | 'violet' | 'lime' | 'rose' | 'gold';
 
+/** 10-band graphic equalizer (Winamp-style bands), gains in dB. */
+export interface EqualizerSettings {
+  enabled: boolean;
+  /** dB, applied before the bands (−12…+12) */
+  preamp: number;
+  /** dB per band (−12…+12), see EQ_FREQUENCIES */
+  bands: number[];
+  /** Name of the preset the bands came from; null once edited by hand. */
+  preset: string | null;
+}
+
 export interface Preferences {
   theme: ThemeMode;
   accent: AccentColor;
@@ -307,6 +318,7 @@ export interface Preferences {
   /** Sync the play queue to the server so other clients can resume it. */
   syncQueue: boolean;
   scrobble: boolean;
+  equalizer: EqualizerSettings;
 }
 
 /* ------------------------------------------------------------------ */

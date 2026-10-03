@@ -2,6 +2,7 @@ import { createStore } from 'zustand/vanilla';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { Preferences } from '@sonora/types';
 import { lazyStorage } from './platform';
+import { DEFAULT_EQUALIZER, normalizeEqualizer } from './equalizer';
 
 export const DEFAULT_PREFERENCES: Preferences = {
   theme: 'dark',
@@ -15,6 +16,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   defaultVolume: 0.8,
   syncQueue: true,
   scrobble: true,
+  equalizer: DEFAULT_EQUALIZER,
 };
 
 export interface PreferencesState extends Preferences {
@@ -39,7 +41,11 @@ export const preferencesStore = createStore<PreferencesState>()(
       storage: createJSONStorage(() => lazyStorage),
       skipHydration: true,
       partialize: ({ set: _set, reset: _reset, ...prefs }) => prefs,
-      merge: (persisted, current) => ({ ...current, ...(persisted as Partial<Preferences>) }),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<Preferences>;
+        // Older saved preferences have no equalizer; invalid values are repaired.
+        return { ...current, ...p, equalizer: normalizeEqualizer(p.equalizer ?? current.equalizer) };
+      },
     },
   ),
 );

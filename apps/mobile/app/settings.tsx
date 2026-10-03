@@ -79,6 +79,7 @@ export default function Settings() {
           />
           <Row label="Gapless (preload next track)">{sw(prefs.gapless, 'gapless')}</Row>
           <Row label="Crossfade" detail="Not supported by the mobile audio engine yet." />
+          <Row label="Equalizer" detail="Available in the desktop and web app. The mobile audio engine (expo-audio) has no equalizer API yet." />
           <Row label="Scrobble plays">{sw(prefs.scrobble, 'scrobble')}</Row>
           <Row label="Sync queue with server">{sw(prefs.syncQueue, 'syncQueue')}</Row>
         </Section>

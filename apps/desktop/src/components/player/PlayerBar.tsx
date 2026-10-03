@@ -1,7 +1,7 @@
 import { Link } from 'react-router';
 import clsx from 'clsx';
-import { ChevronUp, ListMusic, Maximize2, MicVocal, Radio } from 'lucide-react';
-import { useCurrentItem, usePlayer } from '@sonora/core';
+import { ChevronUp, ListMusic, Maximize2, MicVocal, Radio, SlidersVertical } from 'lucide-react';
+import { useCurrentItem, usePlayer, usePreferences } from '@sonora/core';
 import { Artwork } from '../ui/Artwork';
 import { IconButton } from '../ui/Button';
 import { useUi } from '../../lib/ui-store';
@@ -13,7 +13,8 @@ export function PlayerBar() {
   const item = useCurrentItem();
   const context = usePlayer((s) => s.context);
   const status = usePlayer((s) => s.status);
-  const { queueOpen, toggleQueue, setNowPlayingOpen, setLyricsOpen, lyricsOpen } = useUi();
+  const { queueOpen, toggleQueue, setNowPlayingOpen, setLyricsOpen, lyricsOpen, openDialog } = useUi();
+  const eqOn = usePreferences((s) => s.equalizer.enabled);
   const song = item?.song;
   return (
     <div role="region" aria-label="Player" data-status={status} className="grid h-[88px] grid-cols-[minmax(180px,1fr)_minmax(320px,2fr)_minmax(180px,1fr)] items-center gap-4 px-3">
@@ -67,6 +68,9 @@ export function PlayerBar() {
       <div className="flex items-center justify-end gap-1">
         <IconButton label="Lyrics" size="sm" active={lyricsOpen} disabled={!song} onClick={() => { setLyricsOpen(!lyricsOpen); if (!lyricsOpen) setNowPlayingOpen(true); }}>
           <MicVocal className="size-[18px]" />
+        </IconButton>
+        <IconButton label={eqOn ? 'Equalizer (on)' : 'Equalizer'} size="sm" active={eqOn} onClick={() => openDialog({ type: 'equalizer' })}>
+          <SlidersVertical className="size-[18px]" />
         </IconButton>
         <IconButton label={queueOpen ? 'Hide queue' : 'Show queue'} size="sm" active={queueOpen} aria-pressed={queueOpen} onClick={toggleQueue}>
           <ListMusic className="size-[18px]" />

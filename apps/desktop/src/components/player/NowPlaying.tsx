@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import clsx from 'clsx';
-import { ChevronDown, ListMusic, MicVocal, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, ListMusic, MicVocal, MoreHorizontal, SlidersVertical } from 'lucide-react';
 import { rgbToCss } from '@sonora/ui';
-import { playerStore, useCurrentItem, usePlayer } from '@sonora/core';
+import { playerStore, useCurrentItem, usePlayer, usePreferences } from '@sonora/core';
 import { Artwork } from '../ui/Artwork';
 import { IconButton } from '../ui/Button';
 import { useDominantColor } from '../../hooks/useDominantColor';
@@ -24,6 +24,8 @@ export function NowPlaying() {
   const open = useUi((s) => s.nowPlayingOpen);
   const setOpen = useUi((s) => s.setNowPlayingOpen);
   const lyricsOpen = useUi((s) => s.lyricsOpen);
+  const openDialog = useUi((s) => s.openDialog);
+  const eqOn = usePreferences((s) => s.equalizer.enabled);
   const setLyricsOpen = useUi((s) => s.setLyricsOpen);
   const [panel, setPanel] = useState<'none' | 'queue'>('none');
   const item = useCurrentItem();
@@ -147,6 +149,9 @@ export function NowPlaying() {
                   <MicVocal className="size-5" />
                 </IconButton>
                 {!isMobile && <VolumeControl />}
+                <IconButton label={eqOn ? 'Equalizer (on)' : 'Equalizer'} active={eqOn} onClick={() => openDialog({ type: 'equalizer' })}>
+                  <SlidersVertical className="size-5" />
+                </IconButton>
                 <IconButton label="Queue" active={panel === 'queue'} aria-pressed={panel === 'queue'} onClick={() => { setPanel(panel === 'queue' ? 'none' : 'queue'); setLyricsOpen(false); }}>
                   <ListMusic className="size-5" />
                 </IconButton>

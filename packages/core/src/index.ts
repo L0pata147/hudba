@@ -3,6 +3,7 @@ export * from './queue';
 export * from './player';
 export * from './session';
 export * from './preferences';
+export * from './equalizer';
 export * from './history';
 export * from './favorites';
 export * from './downloads';

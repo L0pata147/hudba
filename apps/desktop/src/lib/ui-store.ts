@@ -33,6 +33,7 @@ export type DialogRequest =
   | { type: 'add-to-playlist'; songs: Song[] }
   | { type: 'create-playlist'; songs?: Song[] }
   | { type: 'edit-playlist'; playlist: Playlist }
+  | { type: 'equalizer' }
   | { type: 'confirm'; title: string; message: string; confirmLabel: string; danger?: boolean; onConfirm: () => void };
 
 interface UiState {

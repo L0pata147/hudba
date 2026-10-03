@@ -32,6 +32,7 @@ Then log in with your Navidrome address, e.g. `192.168.0.103:4533` on your home 
 | **Queue** | Now playing / up next, drag & drop reordering, remove, jump to, clear, add album/playlist/artist to queue, Play next, Add to end, persistent across navigation & restarts, synced to the server (`savePlayQueue`) to resume on other devices |
 | **Playlists** | Create, rename (with description), delete, add songs, remove songs, reorder (drag & drop), play, shuffle — all synced with Navidrome |
 | **Favorites** | Songs, albums, artists; optimistic UI everywhere (rows, cards, player, favorites page) with rollback on error |
+| **Equalizer** | 10-band graphic EQ (60 Hz – 16 kHz, ±12 dB) with preamp, 19 presets, response curve, keyboard control; desktop & web (Web Audio). See [Equalizer](#equalizer) |
 | **Radio** | Endless “song radio” from a song, album, artist, playlist or genre (⋯ menu → *Start radio*, or the Radio page). Weighted, non-repeating recommendations from your own library; Familiar / Balanced / Adventurous direction, *Steer from this song*, learns from skips and completed songs, survives restarts — see [Radio](#radio) |
 | **History** | Per-track history on the device (Navidrome only exposes album-level "recently played"); plays are scrobbled to the server |
 | **Offline** | Library metadata cache (IndexedDB / AsyncStorage) for instant start-up and offline browsing; song downloads for offline playback (Cache Storage on desktop/web, app sandbox files on mobile) |
@@ -208,6 +209,18 @@ No credentials or server addresses are compiled into the source.
 | Server sync | play queue + position | Navidrome `savePlayQueue` | debounced; restored on a device with an empty queue |
 
 **Sync:** playlists, favorites and play counts live on the server; every mutation goes to the server (with optimistic UI and rollback). Downloads are addressed by song id, so they survive metadata refreshes.
+
+## Equalizer
+
+Open it from the player bar (sliders icon), the full-screen player or *Settings → Playback*.
+
+- **Chain:** `<audio>` → per-element gain (volume, mute, crossfade) → preamp → 10 peaking filters (60, 170, 310, 600 Hz, 1, 3, 6, 12, 14, 16 kHz, Q ≈ 1.4) → soft clipper (linear below −1 dBFS) → speakers. Off = every stage at unity, so the signal is untouched.
+- **Lazy:** Web Audio is only set up the first time the EQ is switched on; until then playback uses the plain media element.
+- **CORS:** Web Audio can only process audio the server allows cross-origin. Navidrome sends `Access-Control-Allow-Origin: *` for `/rest/*` (verified on 0.64). If a proxy strips it, Sonora detects it (CORS probe), keeps playing without the EQ and shows "Equalizer unavailable".
+- **Presets** lower the preamp by half of their largest boost to avoid clipping.
+- **Mobile app:** not available — expo-audio exposes no EQ / DSP API. The responsive web app on a phone has the EQ.
+
+Tested: an offline-rendered DSP test measures the real filter chain (Bass boost: +7.6 dB at 60 Hz vs 12 kHz; flat/off within ±0.5 dB), an E2E test checks audio actually flows through the EQ while playing, and a test with a real cross-origin server without CORS checks the fallback.
 
 ## Radio
 
