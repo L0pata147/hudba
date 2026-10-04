@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   PATH_SCENES,
+  TERRAIN_ROWS_AT,
+  sceneGradients,
   cycleVisualizerStyle,
   initPathScene,
   normalizeVisualizerStyle,
@@ -92,8 +94,18 @@ describe.each(ids)('scene %s', (id) => {
 /** How much a scene's drawing reacts: bar heights, vertical spread of lines, ring deformation, star size. */
 function activity(id: PathSceneId, paths: string[]): number {
   const all = paths.join('');
-  if (id === 'bars' || id === 'mirror') return [...all.matchAll(/v(-?\d+(\.\d+)?)/g)].reduce((s, m) => s + Math.abs(Number(m[1])), 0);
-  if (id === 'galaxy') return [...all.matchAll(/h(-?\d+(\.\d+)?)/g)].reduce((s, m) => s + Math.abs(Number(m[1])), 0);
+  if (id === 'bars' || id === 'mirror') {
+    // Bars are capsules (M x base V top … ) or, when short, rects (… v height …).
+    return paths[0]!
+      .split('M')
+      .filter(Boolean)
+      .reduce((sum, sub) => {
+        const cap = /^(-?[\d.]+) (-?[\d.]+)V(-?[\d.]+)/.exec(sub);
+        const box = /v(-?[\d.]+)/.exec(sub);
+        return sum + (cap ? Math.abs(Number(cap[2]) - Number(cap[3])) : box ? Math.abs(Number(box[1])) : 0);
+      }, 0);
+  }
+  if (id === 'galaxy') return [...paths.slice(4, 7).join('').matchAll(/h(-?\d+(\.\d+)?)/g)].reduce((s, m) => s + Math.abs(Number(m[1])), 0);
   const pairs = (d: string) => {
     const n = numbers(d);
     const out: [number, number][] = [];
@@ -103,14 +115,15 @@ function activity(id: PathSceneId, paths: string[]): number {
   if (id === 'tunnel') {
     // Spread of the radius within each ring (a plain hexagon varies little).
     let total = 0;
-    for (const ring of paths.slice(1).join('').split('M').filter(Boolean)) {
+    for (const ring of paths.slice(2, 5).join('').split('M').filter(Boolean)) {
       const r = pairs('M' + ring).map(([x, y]) => Math.hypot(x - W / 2, y - H / 2));
       total += Math.max(...r) / Math.max(1, Math.min(...r));
     }
     return total;
   }
-  const ys = paths.flatMap((d) => pairs(d).map(([, y]) => y));
-  const lines = paths.map((d) => {
+  const relevant = id === 'terrain' ? paths.slice(TERRAIN_ROWS_AT) : id === 'scope' ? [paths[4]!] : paths;
+  const ys = relevant.flatMap((d) => pairs(d).map(([, y]) => y));
+  const lines = relevant.map((d) => {
     const y = pairs(d).map(([, v]) => v);
     return y.length ? Math.max(...y) - Math.min(...y) : 0;
   });
@@ -144,9 +157,11 @@ describe('scene details', () => {
     for (let f = 0; f < 60 * 4; f++) stepPathScene('terrain', s as never, { ...loud(f / 60), quality: 0 });
     expect(s.rows).toHaveLength(s.R);
     const out = stepPathScene('terrain', s as never, { ...loud(5), quality: 0 });
-    expect(out.paths).toHaveLength(s.R + 1);
+    expect(out.paths).toHaveLength(TERRAIN_ROWS_AT + s.R + 1);
     // Far rows are fainter than near ones.
-    expect(out.alphas[1]!).toBeLessThan(out.alphas[s.R - 1]!);
+    expect(out.alphas[TERRAIN_ROWS_AT + 1]!).toBeLessThan(out.alphas[TERRAIN_ROWS_AT + s.R - 1]!);
+    // The sun is cut by gaps: several closed pieces.
+    expect(out.paths[1]!.split('Z').length).toBeGreaterThan(4);
   });
 
   it('tunnel and galaxy move faster with bass', () => {
@@ -164,5 +179,37 @@ describe('scene details', () => {
       return st.a[7]! - a0;
     };
     expect(galaxyStep(1)).toBeGreaterThan(galaxyStep(0) * 3);
+  });
+});
+
+describe('scene paints', () => {
+  it.each(ids)('%s: every slot paints with a known colour or gradient', (id) => {
+    for (const q of [0, 1] as const) {
+      const grads = sceneGradients(id, W, H, q);
+      for (const slot of PATH_SCENES[id].slots(q)) {
+        for (const paint of [slot.paint, slot.fill].filter(Boolean) as string[]) {
+          expect(['c1', 'c2', 'mix', 'white', 'black', 'dark', 'c1light', 'c2light'].includes(paint) || paint in grads, `${id}: ${paint}`).toBe(true);
+        }
+      }
+      for (const g of Object.values(grads)) for (const [o] of g.stops) expect(o).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('beats fire sparks, motes and shockwaves', () => {
+    const run = (id: PathSceneId) => {
+      const s = initPathScene(id, 1);
+      let out = stepPathScene(id, s, loud());
+      for (let f = 0; f < 30; f++) out = stepPathScene(id, s, { ...loud(1 + f / 60), kick: f === 10 ? 1 : f > 10 ? 0.88 ** (f - 10) : 0 });
+      return out;
+    };
+    expect(run('bars').paths[3]!.length).toBeGreaterThan(0);
+    expect(run('mirror').paths[4]!.length).toBeGreaterThan(0);
+    const tunnel = (() => {
+      const s = initPathScene('tunnel', 1);
+      stepPathScene('tunnel', s, loud());
+      return stepPathScene('tunnel', s, { ...loud(), kick: 1 });
+    })();
+    expect(tunnel.paths[6]!.length).toBeGreaterThan(0);
+    expect(tunnel.alphas[6]!).toBeGreaterThan(0.9);
   });
 });

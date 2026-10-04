@@ -27,6 +27,7 @@ import { createRingRenderer } from './visualizer/ring';
 import { createPathRenderer } from './visualizer/paths';
 import { createMilkdropRenderer } from './visualizer/milkdrop';
 import { createLiquidRenderer } from './visualizer/liquid';
+import { createLiquidGlRenderer } from './visualizer/liquid-gl';
 import { createAmbientRenderer } from './visualizer/ambient';
 import { LyricPulse } from './visualizer/LyricPulse';
 
@@ -55,18 +56,28 @@ async function setNativeFullscreen(on: boolean, el: HTMLElement | null) {
   }
 }
 
-function createRenderer(style: VisualizerStyle, canvas: HTMLCanvasElement, getUrl: () => string | undefined): Renderer | null {
+interface RendererOptions {
+  /** cover for the liquid style */
+  coverUrl: () => string | undefined;
+  /** smaller cover for the blurred ambient background */
+  backgroundUrl: () => string | undefined;
+  /** the WebGL liquid cover could not use the image (no CORS) */
+  liquid2d: boolean;
+  onLiquidFallback: () => void;
+}
+
+function createRenderer(style: VisualizerStyle, canvas: HTMLCanvasElement, o: RendererOptions): Renderer | null {
   switch (style) {
     case 'ring':
       return createRingRenderer(canvas);
     case 'milkdrop':
       return createMilkdropRenderer(canvas);
     case 'liquid':
-      return createLiquidRenderer(canvas, getUrl);
+      return (o.liquid2d ? null : createLiquidGlRenderer(canvas, o.coverUrl, o.onLiquidFallback)) ?? createLiquidRenderer(canvas, o.coverUrl);
     case 'lyrics':
-      return createAmbientRenderer(canvas, 0.55);
+      return createAmbientRenderer(canvas, o.backgroundUrl, 0.7);
     case 'ambient':
-      return createAmbientRenderer(canvas);
+      return createAmbientRenderer(canvas, o.backgroundUrl);
     default:
       return isPathScene(style) ? createPathRenderer(canvas, style) : null;
   }
@@ -168,14 +179,19 @@ export function Visualizer({ song }: { song: Song }) {
     return () => clearTimeout(hideTimer.current);
   }, [immersive, poke]);
 
+  const [liquid2d, setLiquid2d] = useState(false);
   useEffect(() => setGlFailed(false), [style]);
 
   /* ---------- render loop ---------- */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const getUrl = () => artworkUrl(songRef.current.coverArtId, 'hero');
-    const renderer = createRenderer(style, canvas, getUrl);
+    const renderer = createRenderer(style, canvas, {
+      coverUrl: () => artworkUrl(songRef.current.coverArtId, 'hero'),
+      backgroundUrl: () => artworkUrl(songRef.current.coverArtId, 'card'),
+      liquid2d,
+      onLiquidFallback: () => setLiquid2d(true),
+    });
     if (!renderer) {
       if (style === 'milkdrop') setGlFailed(true);
       return;
@@ -195,6 +211,8 @@ export function Visualizer({ song }: { song: Song }) {
     let bass = 0;
     let kick = 0;
     let t = 0;
+    let lastPos = -1;
+    let lastPosAt = 0;
 
     const resize = () => {
       const { width, height } = canvas.getBoundingClientRect();
@@ -297,13 +315,31 @@ export function Visualizer({ song }: { song: Song }) {
         flashRef.current.style.visibility = flash > 0.003 ? 'visible' : 'hidden';
       }
       if (style === 'lyrics' && rootRef.current) {
+        // Karaoke: estimate the playback position between the player's (≈4 Hz) updates.
+        const player = playerStore.getState();
+        if (player.position !== lastPos) {
+          lastPos = player.position;
+          lastPosAt = now;
+        }
+        const posMs = (lastPos + (player.status === 'playing' ? Math.min(0.6, (now - lastPosAt) / 1000) : 0)) * 1000;
+        const line = rootRef.current.querySelector<HTMLElement>('[data-line-start]');
+        const lineStart = line ? Number(line.dataset.lineStart) : 0;
+        const lineEnd = line ? Number(line.dataset.lineEnd) : 0;
+        const progress = line ? Math.min(1, Math.max(0, (posMs - lineStart) / Math.max(1, lineEnd - lineStart))) : 1;
         const words = rootRef.current.querySelectorAll<HTMLElement>('[data-word]');
         const n = words.length;
         words.forEach((el, i) => {
           const v = reduced ? 0 : sampleLevel(smooth, 0.05 + (0.85 * (i + 0.5)) / Math.max(1, n));
+          const w0 = Number(el.dataset.w0);
+          const w1 = Number(el.dataset.w1);
+          const fill = line ? Math.min(1, Math.max(0, (progress - w0) / Math.max(0.001, w1 - w0))) : 1;
+          const singing = fill > 0 && fill < 1;
           // Mostly a lift; the scale stays small so a word never grows into its neighbours.
-          el.style.transform = `translateY(${-v * 18 - kick * 4}px) scale(${1 + v * 0.08 + kick * 0.04})`;
-          el.style.opacity = String(0.82 + v * 0.18);
+          const lift = v * 18 + kick * 4 + (singing ? 6 + bass * 6 : 0);
+          el.style.transform = `translateY(${-lift}px) scale(${1 + v * 0.06 + kick * 0.04 + (singing ? 0.05 : 0)})`;
+          el.style.setProperty('--fill', fill.toFixed(3));
+          if (fill > 0) el.dataset.sung = '';
+          else delete el.dataset.sung;
         });
       }
     };
@@ -313,7 +349,7 @@ export function Visualizer({ song }: { song: Song }) {
       ro.disconnect();
       renderer.dispose?.();
     };
-  }, [style]);
+  }, [style, liquid2d]);
 
   const art = artworkUrl(song.coverArtId, 'full');
   const [c1, c2] = palette;
@@ -347,7 +383,7 @@ export function Visualizer({ song }: { song: Song }) {
         className="absolute inset-0 opacity-0"
         style={{ background: `radial-gradient(circle at 50% 50%, ${rgbToCss(c1, 0.32)} 0%, ${rgbToCss(c2, 0.12)} 35%, transparent 60%)` }}
       />
-      <canvas key={style === 'milkdrop' ? 'gl' : '2d'} ref={canvasRef} className="absolute inset-0 size-full" aria-hidden />
+      <canvas key={`${style}${liquid2d ? '-2d' : ''}`} ref={canvasRef} className="absolute inset-0 size-full" aria-hidden />
       {style === 'scope' && (
         <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(0deg,rgba(0,0,0,0.22)_0px,rgba(0,0,0,0.22)_1px,transparent_1px,transparent_3px)]" aria-hidden />
       )}

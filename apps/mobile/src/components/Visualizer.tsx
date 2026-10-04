@@ -276,9 +276,9 @@ export function Visualizer({ song, immersive, onImmersive }: { song: Song; immer
               </Animated.View>
             )}
             {(style === 'ambient' || style === 'lyrics') && (
-              <AmbientBlobs out={out} c1={c1} c2={c2} w={size.w} h={size.h} dim={style === 'lyrics' ? 0.55 : 1} reduced={reduced} />
+              <AmbientBlobs song={song} out={out} c1={c1} c2={c2} w={size.w} h={size.h} dim={style === 'lyrics' ? 0.7 : 1} reduced={reduced} />
             )}
-            {slots && <SlotLayer key={style} slots={slots} out={out} c1={c1} c2={c2} w={size.w} h={size.h} />}
+            {slots && <SlotLayer key={style} scene={isPathScene(style) ? style : null} slots={slots} out={out} c1={c1} c2={c2} w={size.w} h={size.h} />}
             {style === 'liquid' && <LiquidCover song={song} out={out} w={size.w} h={size.h} reduced={reduced} />}
             {info.cover !== 'none' && (
               <Animated.View

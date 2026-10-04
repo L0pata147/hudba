@@ -26,13 +26,13 @@ export const VISUALIZER_STYLES: VisualizerStyleInfo[] = [
   { ...base, id: 'ring', name: 'Neon ring', cover: 'ring', glow: true, flash: true, shake: true },
   { ...base, id: 'bars', name: 'Spectrum bars', flash: true },
   { ...base, id: 'mirror', name: 'Mirror horizon', cover: 'square', flash: true },
-  { ...base, id: 'scope', name: 'Oscilloscope' },
-  { ...base, id: 'terrain', name: 'Pulsar terrain' },
-  { ...base, id: 'tunnel', name: 'Warp tunnel', cover: 'small', glow: true, flash: true, shake: true },
-  { ...base, id: 'galaxy', name: 'Galaxy', glow: true, flash: true },
+  { ...base, id: 'scope', name: 'Oscilloscope', backdrop: false },
+  { ...base, id: 'terrain', name: 'Pulsar terrain', backdrop: false, flash: true },
+  { ...base, id: 'tunnel', name: 'Warp tunnel', cover: 'small', glow: true, flash: true, shake: true, backdrop: false },
+  { ...base, id: 'galaxy', name: 'Galaxy', glow: true, flash: true, backdrop: false },
   { ...base, id: 'milkdrop', name: 'Milkdrop', desktopOnly: true, backdrop: false },
   { ...base, id: 'liquid', name: 'Liquid cover', glow: true, shake: true },
-  { ...base, id: 'lyrics', name: 'Lyric pulse' },
+  { ...base, id: 'lyrics', name: 'Lyric pulse', backdrop: false },
   { ...base, id: 'ambient', name: 'Ambient', backdrop: false },
 ];
 

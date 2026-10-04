@@ -207,3 +207,14 @@
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Karaoke words in the visualizer's lyric pulse: --fill (0…1) is set every frame. */
+.karaoke-word {
+  background: linear-gradient(90deg, #fff calc(var(--fill, 1) * 100%), rgba(255, 255, 255, 0.36) calc(var(--fill, 1) * 100%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.karaoke-word[data-sung] {
+  filter: drop-shadow(0 0 14px var(--glow, rgba(255, 255, 255, 0.6)));
+}
