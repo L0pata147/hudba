@@ -17,6 +17,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   syncQueue: true,
   scrobble: true,
   equalizer: DEFAULT_EQUALIZER,
+  visualizer: false,
 };
 
 export interface PreferencesState extends Preferences {

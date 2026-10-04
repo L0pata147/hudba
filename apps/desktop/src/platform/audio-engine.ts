@@ -8,6 +8,8 @@ interface AudioGraph {
   ctx: AudioContext;
   chain: EqualizerChain;
   analyser: AnalyserNode;
+  /** Taps the music before volume/EQ, so the visualizer looks the same at any volume. */
+  visAnalyser: AnalyserNode;
   /** Per-element gain: volume/mute/crossfade are applied here once an element feeds Web Audio. */
   gains: Map<HTMLAudioElement, GainNode>;
 }
@@ -86,7 +88,13 @@ export class HtmlAudioEngine implements AudioEngine {
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
     chain.output.connect(analyser);
-    this.graph = { ctx, chain, analyser, gains: new Map() };
+    const visAnalyser = ctx.createAnalyser();
+    visAnalyser.fftSize = 2048;
+    visAnalyser.smoothingTimeConstant = 0.55;
+    visAnalyser.minDecibels = -85;
+    visAnalyser.maxDecibels = -22;
+    this.graph = { ctx, chain, analyser, visAnalyser, gains: new Map() };
+    if (this.eq) chain.apply(this.eq);
     for (const el of this.elements) this.attach(el);
     if (!this.active.paused) void ctx.resume();
   }
@@ -97,8 +105,22 @@ export class HtmlAudioEngine implements AudioEngine {
     const source = g.ctx.createMediaElementSource(el);
     const gain = g.ctx.createGain();
     source.connect(gain).connect(g.chain.input);
+    source.connect(g.visAnalyser);
     g.gains.set(el, gain);
     this.setElementVolume(el, el === this.active ? this.volume : 0);
+  }
+
+  /**
+   * Analyser for the visualizer. Routes playback through Web Audio on first
+   * use (like the EQ). Returns null when the server does not allow CORS.
+   */
+  getVisualizerAnalyser(): AnalyserNode | null {
+    if (!this.graph && !this.corsBlocked) {
+      this.buildGraph();
+      if (this.eq) this.setEqualizer(this.eq);
+    }
+    if (this.graph && this.graph.ctx.state !== 'running' && !this.active.paused) void this.graph.ctx.resume();
+    return this.graph?.visAnalyser ?? null;
   }
 
   /** RMS level (0…1) of what the EQ outputs right now; null without Web Audio. Used by diagnostics/tests. */

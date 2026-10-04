@@ -319,6 +319,8 @@ export interface Preferences {
   syncQueue: boolean;
   scrobble: boolean;
   equalizer: EqualizerSettings;
+  /** Show the spectrum visualizer instead of the cover in the full-screen player. */
+  visualizer: boolean;
 }
 
 /* ------------------------------------------------------------------ */

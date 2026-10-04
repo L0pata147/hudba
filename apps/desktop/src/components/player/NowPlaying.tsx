@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import clsx from 'clsx';
-import { ChevronDown, ListMusic, MicVocal, MoreHorizontal, SlidersVertical } from 'lucide-react';
+import { AudioLines, ChevronDown, ListMusic, MicVocal, MoreHorizontal, SlidersVertical } from 'lucide-react';
 import { rgbToCss } from '@sonora/ui';
-import { playerStore, useCurrentItem, usePlayer, usePreferences } from '@sonora/core';
+import { playerStore, preferencesStore, useCurrentItem, usePlayer, usePreferences } from '@sonora/core';
 import { Artwork } from '../ui/Artwork';
 import { IconButton } from '../ui/Button';
 import { useDominantColor } from '../../hooks/useDominantColor';
@@ -14,6 +14,7 @@ import { FavoriteButton } from './FavoriteButton';
 import { ProgressBar, TransportControls, VolumeControl } from './Controls';
 import { QueuePanel } from './QueuePanel';
 import { Lyrics } from './Lyrics';
+import { Visualizer } from './Visualizer';
 
 /**
  * Full-screen "Now Playing" view (mobile full player / desktop immersive
@@ -26,6 +27,8 @@ export function NowPlaying() {
   const lyricsOpen = useUi((s) => s.lyricsOpen);
   const openDialog = useUi((s) => s.openDialog);
   const eqOn = usePreferences((s) => s.equalizer.enabled);
+  const visualizer = usePreferences((s) => s.visualizer);
+  const toggleVisualizer = () => preferencesStore.getState().set('visualizer', !preferencesStore.getState().visualizer);
   const setLyricsOpen = useUi((s) => s.setLyricsOpen);
   const [panel, setPanel] = useState<'none' | 'queue'>('none');
   const item = useCurrentItem();
@@ -40,7 +43,11 @@ export function NowPlaying() {
   useEffect(() => {
     if (!open) return;
     closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+      const typing = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+      if ((e.key === 'v' || e.key === 'V') && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) toggleVisualizer();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, setOpen]);
@@ -105,16 +112,22 @@ export function NowPlaying() {
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerUp}
             >
-              <Artwork
-                key={song.id}
-                coverArtId={song.coverArtId}
-                size="full"
-                kind="song"
-                rounded="lg"
-                priority
-                className="animate-pop aspect-square w-full max-w-[min(560px,40dvh)] md:max-w-[min(560px,52vh)] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]"
-                alt={`${song.album ?? song.title} cover`}
-              />
+              {visualizer ? (
+                <div className="animate-fade-in size-full max-w-[1200px]">
+                  <Visualizer song={song} />
+                </div>
+              ) : (
+                <Artwork
+                  key={song.id}
+                  coverArtId={song.coverArtId}
+                  size="full"
+                  kind="song"
+                  rounded="lg"
+                  priority
+                  className="animate-pop aspect-square w-full max-w-[min(560px,40dvh)] md:max-w-[min(560px,52vh)] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]"
+                  alt={`${song.album ?? song.title} cover`}
+                />
+              )}
             </div>
             <div className="mx-auto w-full max-w-[560px] shrink-0" style={{ transform: `translateX(${offset.x * 0.3}px)` }}>
               <div className="flex items-end justify-between gap-4">
@@ -149,6 +162,9 @@ export function NowPlaying() {
                   <MicVocal className="size-5" />
                 </IconButton>
                 {!isMobile && <VolumeControl />}
+                <IconButton label="Visualizer (V)" active={visualizer} aria-pressed={visualizer} onClick={toggleVisualizer}>
+                  <AudioLines className="size-5" />
+                </IconButton>
                 <IconButton label={eqOn ? 'Equalizer (on)' : 'Equalizer'} active={eqOn} onClick={() => openDialog({ type: 'equalizer' })}>
                   <SlidersVertical className="size-5" />
                 </IconButton>

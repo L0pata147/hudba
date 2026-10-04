@@ -132,3 +132,54 @@ test('without CORS on the stream the music keeps playing and the EQ reports unav
   await expect(page.getByRole('dialog', { name: 'Equalizer' }).getByRole('alert')).toContainText('does not allow cross-origin audio');
   server.close();
 });
+
+test('visualizer: toggles with V, animates with the music and is remembered', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'desktop run covers it');
+  if (!real) await installMockNavidrome(page);
+  await page.goto('/');
+  await page.getByLabel('Server URL').fill(real ?? MOCK_SERVER);
+  await page.getByLabel('Username').fill(real ? (process.env.SONORA_E2E_USER ?? 'admin') : MOCK_USER);
+  await page.getByLabel('Password', { exact: true }).fill(real ? (process.env.SONORA_E2E_PASSWORD ?? '') : MOCK_PASSWORD);
+  await page.getByRole('button', { name: 'Log in' }).click();
+  await page.goto(`/#/search?q=${encodeURIComponent(real ? (process.env.SONORA_E2E_QUERY ?? 'light') : 'glass')}`);
+  await page.getByRole('region', { name: 'Albums' }).getByRole('link').first().click();
+  await expect(page.getByRole('table')).toHaveCount(1);
+  await page.getByRole('table').getByRole('row').filter({ has: page.getByRole('cell') }).first().click();
+  await expect(page.getByRole('region', { name: 'Player' })).toHaveAttribute('data-status', 'playing');
+  await page.getByRole('button', { name: 'Full screen player' }).click();
+  await page.keyboard.press('v');
+  const vis = page.getByTestId('visualizer');
+  await expect(vis).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Visualizer (V)' })).toHaveAttribute('aria-pressed', 'true');
+
+  const snapshot = () =>
+    page.evaluate(() => {
+      const c = document.querySelector<HTMLCanvasElement>('[data-testid=visualizer] canvas')!;
+      const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+      let lit = 0;
+      let sum = 0;
+      for (let i = 0; i < d.length; i += 64) {
+        sum += d[i]! + d[i + 1]! + d[i + 2]!;
+        if (d[i + 3]! > 40) lit++;
+      }
+      return { lit, sum };
+    });
+  await expect.poll(async () => (await snapshot()).lit, { timeout: 8000 }).toBeGreaterThan(100);
+  // The ring reaches further out while music plays than after pausing (it reacts to the audio,
+  // not just to its idle wobble).
+  let playingLit = 0;
+  for (let i = 0; i < 8; i++) {
+    playingLit = Math.max(playingLit, (await snapshot()).lit);
+    await page.waitForTimeout(100);
+  }
+  const fullPlayer = page.getByRole('dialog', { name: /Now playing/ });
+  await fullPlayer.getByRole('button', { name: 'Pause', exact: true }).click();
+  await page.waitForTimeout(1500);
+  const pausedLit = (await snapshot()).lit;
+  expect(pausedLit).toBeLessThan(playingLit * 0.9);
+  await fullPlayer.getByRole('button', { name: 'Play', exact: true }).click();
+
+  await page.reload();
+  await page.getByRole('button', { name: 'Full screen player' }).click();
+  await expect(page.getByTestId('visualizer')).toBeVisible();
+});

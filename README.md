@@ -33,6 +33,7 @@ Then log in with your Navidrome address, e.g. `192.168.0.103:4533` on your home 
 | **Playlists** | Create, rename (with description), delete, add songs, remove songs, reorder (drag & drop), play, shuffle — all synced with Navidrome |
 | **Favorites** | Songs, albums, artists; optimistic UI everywhere (rows, cards, player, favorites page) with rollback on error |
 | **Equalizer** | 10-band graphic EQ (60 Hz – 16 kHz, ±12 dB) with preamp, 19 presets, response curve, keyboard control; desktop & web (Web Audio). See [Equalizer](#equalizer) |
+| **Visualizer** | Circular neon spectrum ring around the cover (press `V` in the full-screen player), colour taken from the artwork, pulses with the bass; desktop & web |
 | **Radio** | Endless “song radio” from a song, album, artist, playlist or genre (⋯ menu → *Start radio*, or the Radio page). Weighted, non-repeating recommendations from your own library; Familiar / Balanced / Adventurous direction, *Steer from this song*, learns from skips and completed songs, survives restarts — see [Radio](#radio) |
 | **History** | Per-track history on the device (Navidrome only exposes album-level "recently played"); plays are scrobbled to the server |
 | **Offline** | Library metadata cache (IndexedDB / AsyncStorage) for instant start-up and offline browsing; song downloads for offline playback (Cache Storage on desktop/web, app sandbox files on mobile) |
@@ -221,6 +222,14 @@ Open it from the player bar (sliders icon), the full-screen player or *Settings 
 - **Mobile app:** not available — expo-audio exposes no EQ / DSP API. The responsive web app on a phone has the EQ.
 
 Tested: an offline-rendered DSP test measures the real filter chain (Bass boost: +7.6 dB at 60 Hz vs 12 kHz; flat/off within ±0.5 dB), an E2E test checks audio actually flows through the EQ while playing, and a test with a real cross-origin server without CORS checks the fallback.
+
+## Visualizer
+
+Full-screen player → waveform icon or `V`. A mirrored, multi-layer ring (lows at the top and bottom, highs on the sides) is drawn on a canvas around the cover, over a blurred copy of the artwork. The ring colour comes from the artwork (grey covers give white), the ring and a glow pulse with the bass (30–150 Hz).
+
+- Reads a Web Audio `AnalyserNode` that taps the music **before** volume/EQ, so it looks the same at any volume. Like the EQ it needs CORS on the stream (Navidrome sends it) and shows a note if the server blocks it.
+- Animation runs outside React (`requestAnimationFrame`), glow is drawn with layered strokes instead of `shadowBlur`; 60 fps in headless Chromium without a GPU. `prefers-reduced-motion` turns the pulse off.
+- Mobile app: not yet — expo-audio offers audio sampling, which a future native visualizer could use.
 
 ## Radio
 
