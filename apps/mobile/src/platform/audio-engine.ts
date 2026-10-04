@@ -16,6 +16,7 @@ export class ExpoAudioEngine implements AudioEngine {
   private loaded = false;
   private endedFor: string | null = null;
   private src: string | null = null;
+  private sampleSub: { remove(): void } | null = null;
 
   constructor() {
     this.player = createAudioPlayer(null, { updateInterval: 250 });
@@ -92,6 +93,27 @@ export class ExpoAudioEngine implements AudioEngine {
 
   setMuted(muted: boolean): void {
     this.player.muted = muted;
+  }
+
+  /** Whether the native player can deliver PCM samples (Android Visualizer / iOS audio tap). */
+  get samplingSupported(): boolean {
+    return this.player.isAudioSamplingSupported;
+  }
+
+  /**
+   * Streams PCM frames (−1…1, first channel) to `listener` for the visualizer; `null` stops it.
+   * On Android this needs the RECORD_AUDIO permission (the system Visualizer API), otherwise
+   * expo-audio silently ignores the request.
+   */
+  setSampleListener(listener: ((frames: number[]) => void) | null): void {
+    this.sampleSub?.remove();
+    this.sampleSub = null;
+    if (listener) this.sampleSub = this.player.addListener('audioSampleUpdate', (s) => listener(s.channels[0]?.frames ?? []));
+    try {
+      this.player.setAudioSamplingEnabled(!!listener);
+    } catch {
+      // not supported on this platform
+    }
   }
 
   stop(): void {

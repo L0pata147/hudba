@@ -5,13 +5,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
-import { ChevronDown, ListMusic, MicVocal, MoreVertical, Repeat, Repeat1, Shuffle, SkipBack, SkipForward } from 'lucide-react-native';
-import { playerStore, useCurrentItem, useLyrics, usePlayer, usePlayerShallow } from '@sonora/core';
+import { AudioWaveform, ChevronDown, ListMusic, MicVocal, MoreVertical, Repeat, Repeat1, Shuffle, SkipBack, SkipForward } from 'lucide-react-native';
+import { playerStore, preferencesStore, useCurrentItem, useLyrics, usePlayer, usePlayerShallow, usePreferences } from '@sonora/core';
 import { Artwork, PlayButton, T } from '../src/components/ui';
 import { Seekbar } from '../src/components/Seekbar';
 import { FavoriteToggle } from '../src/components/FavoriteToggle';
 import { useSongSheet } from '../src/actions';
 import { useTheme } from '../src/theme';
+import { Visualizer } from '../src/components/Visualizer';
 
 function LyricsPanel() {
   const item = useCurrentItem();
@@ -39,6 +40,8 @@ export default function Player() {
   const context = usePlayer((s) => s.context);
   const { status, shuffled, repeat } = usePlayerShallow((s) => ({ status: s.status, shuffled: s.queue.shuffled, repeat: s.repeat }));
   const [lyrics, setLyrics] = useState(false);
+  const visualizer = usePreferences((s) => s.visualizer);
+  const [immersive, setImmersive] = useState(false);
   const openSong = useSongSheet();
   const close = () => router.back();
   const skip = (dir: 1 | -1) => (dir > 0 ? playerStore.getState().next() : playerStore.getState().previous());
@@ -80,6 +83,8 @@ export default function Player() {
               <ScrollView style={{ alignSelf: 'stretch' }} contentContainerStyle={{ paddingVertical: 24 }}>
                 <LyricsPanel />
               </ScrollView>
+            ) : visualizer ? (
+              immersive ? null : <Visualizer song={song} immersive={false} onImmersive={setImmersive} />
             ) : (
               <Artwork coverArtId={song.coverArtId} size={1000} kind="song" style={{ width: art, height: art, borderRadius: 12 }} />
             )}
@@ -113,11 +118,24 @@ export default function Player() {
           <Pressable onPress={() => setLyrics((l) => !l)} accessibilityRole="button" accessibilityLabel="Lyrics" accessibilityState={{ selected: lyrics }} hitSlop={10}>
             <MicVocal color={lyrics ? t.accent : t.textSecondary} size={22} />
           </Pressable>
+          <Pressable
+            onPress={() => {
+              setLyrics(false);
+              preferencesStore.getState().set('visualizer', !visualizer);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Visualizer"
+            accessibilityState={{ selected: visualizer }}
+            hitSlop={10}
+          >
+            <AudioWaveform color={visualizer && !lyrics ? t.accent : t.textSecondary} size={22} />
+          </Pressable>
           <Pressable onPress={() => router.push('/queue')} accessibilityRole="button" accessibilityLabel="Queue" hitSlop={10}>
             <ListMusic color={t.textSecondary} size={22} />
           </Pressable>
         </View>
       </View>
+      {visualizer && immersive && !lyrics && <Visualizer song={song} immersive onImmersive={setImmersive} />}
     </View>
   );
 }

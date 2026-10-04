@@ -234,7 +234,10 @@ Full-screen player → waveform icon or `V`. A mirrored, multi-layer ring (lows 
 - **Fullscreen** — `F`, double-click or the button in the corner. The window goes fullscreen (Tauri window / browser Fullscreen API), controls and cursor hide after 2.5 s without movement; `Esc` or `F` leaves it.
 - Reads a Web Audio `AnalyserNode` that taps the music **before** volume/EQ, so it looks the same at any volume. Like the EQ it needs CORS on the stream (Navidrome sends it) and shows a note if the server blocks it.
 - Animation runs outside React (`requestAnimationFrame`), glow is drawn with layered strokes instead of `shadowBlur`, the canvas is capped at ~2.3 MP and trails use a half-resolution buffer. `prefers-reduced-motion` turns off the pulse, shake, flash and particles.
-- Mobile app: not yet — expo-audio offers audio sampling, which a future native visualizer could use.
+- **Mobile app** (Android/iOS): full-screen player → waveform icon. Same ring, colours, beats, echoes and particles, drawn with `react-native-svg` and animated on the UI thread (Reanimated worklets in `apps/mobile/src/visualizer/ring.ts`). Tap it for fullscreen (status bar hidden, controls hide after 2.5 s, Back leaves it).
+  - Audio comes from expo-audio's sample stream (Android `Visualizer` API: 1024 8-bit samples ~10×/s), turned into a spectrum by an FFT in JS (`byteSpectrum` in `@sonora/core`). Because only ~10 short snapshots per second arrive, beats are caught less reliably than on desktop; the bass pulse is continuous.
+  - Android requires the **microphone permission** for this API (nothing is recorded); the visualizer asks for it with an explanation, and without it the ring just idles.
+  - Colours: the cover is fetched at 32 px (Navidrome serves it as JPEG) and decoded with `jpeg-js`; the accent colour is used until then.
 
 ## Radio
 

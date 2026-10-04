@@ -14,3 +14,4 @@ export * from './radio-instance';
 export * from './queries';
 export * from './hooks';
 export * from './bootstrap';
+export * from './visualizer';

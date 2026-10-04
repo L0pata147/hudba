@@ -229,3 +229,42 @@ export function toBackdropColor(color: RGB): RGB {
 }
 
 export const FALLBACK_BACKDROP: RGB = { r: 58, g: 44, b: 70 };
+
+/** Neon ring colour from the artwork colour; grey artwork gives white like the classic look. */
+export function neonColor(c: RGB): RGB {
+  const { h, s } = rgbToHsl(c);
+  if (s < 0.12) return { r: 245, g: 245, b: 250 };
+  return hslToRgb(h, 0.95, 0.6);
+}
+
+/**
+ * Two neon colours from artwork pixels (RGBA): the strongest hue and a second,
+ * clearly different one. Grey artwork gives white + icy blue.
+ */
+export function paletteFromPixels(data: Uint8ClampedArray | Uint8Array): [RGB, RGB] {
+  const BINS = 24;
+  const weights = new Float64Array(BINS);
+  let satTotal = 0;
+  let count = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const c = { r: data[i]!, g: data[i + 1]!, b: data[i + 2]! };
+    const { h, s, l } = rgbToHsl(c);
+    count++;
+    satTotal += s;
+    if (l < 0.12 || l > 0.92) continue;
+    weights[Math.floor((h / 360) * BINS) % BINS]! += s * s;
+  }
+  if (!count || satTotal / count < 0.1) return [{ r: 245, g: 245, b: 250 }, { r: 150, g: 200, b: 255 }];
+  let first = 0;
+  for (let i = 1; i < BINS; i++) if (weights[i]! > weights[first]!) first = i;
+  let second = -1;
+  for (let i = 0; i < BINS; i++) {
+    const dist = Math.min(Math.abs(i - first), BINS - Math.abs(i - first));
+    if (dist < 3) continue;
+    if (weights[i]! >= weights[first]! * 0.2 && (second < 0 || weights[i]! > weights[second]!)) second = i;
+  }
+  const hue = (bin: number) => ((bin + 0.5) / BINS) * 360;
+  const h1 = hue(first);
+  const h2 = second >= 0 ? hue(second) : h1 + 45;
+  return [hslToRgb(h1, 0.95, 0.6), hslToRgb(h2, 0.95, 0.62)];
+}
