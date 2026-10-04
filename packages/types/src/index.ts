@@ -304,6 +304,20 @@ export interface EqualizerSettings {
   preset: string | null;
 }
 
+/** Visualizer styles; `milkdrop` needs WebGL and exists on desktop only. */
+export type VisualizerStyle =
+  | 'ring'
+  | 'bars'
+  | 'mirror'
+  | 'scope'
+  | 'terrain'
+  | 'tunnel'
+  | 'galaxy'
+  | 'milkdrop'
+  | 'liquid'
+  | 'lyrics'
+  | 'ambient';
+
 export interface Preferences {
   theme: ThemeMode;
   accent: AccentColor;
@@ -321,6 +335,7 @@ export interface Preferences {
   equalizer: EqualizerSettings;
   /** Show the spectrum visualizer instead of the cover in the full-screen player. */
   visualizer: boolean;
+  visualizerStyle: VisualizerStyle;
 }
 
 /* ------------------------------------------------------------------ */

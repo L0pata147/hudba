@@ -15,3 +15,5 @@ export * from './queries';
 export * from './hooks';
 export * from './bootstrap';
 export * from './visualizer';
+export * from './visualizer-styles';
+export * from './visualizer-scenes';

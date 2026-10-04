@@ -197,3 +197,72 @@ test('visualizer: toggles with V, animates with the music and is remembered', as
   await page.getByRole('button', { name: 'Full screen player' }).click();
   await expect(page.getByTestId('visualizer')).toBeVisible();
 });
+
+test('visualizer styles: every style draws, menu and arrow keys switch, the choice is remembered', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'desktop run covers it');
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  if (!real) await installMockNavidrome(page);
+  await page.goto('/');
+  await page.getByLabel('Server URL').fill(real ?? MOCK_SERVER);
+  await page.getByLabel('Username').fill(real ? (process.env.SONORA_E2E_USER ?? 'admin') : MOCK_USER);
+  await page.getByLabel('Password', { exact: true }).fill(real ? (process.env.SONORA_E2E_PASSWORD ?? '') : MOCK_PASSWORD);
+  await page.getByRole('button', { name: 'Log in' }).click();
+  await page.goto(`/#/search?q=${encodeURIComponent(real ? (process.env.SONORA_E2E_QUERY ?? 'light') : 'glass')}`);
+  await page.getByRole('region', { name: 'Albums' }).getByRole('link').first().click();
+  await page.getByRole('table').getByRole('row').filter({ has: page.getByRole('cell') }).first().click();
+  await expect(page.getByRole('region', { name: 'Player' })).toHaveAttribute('data-status', 'playing');
+  await page.getByRole('button', { name: 'Full screen player' }).click();
+  await page.keyboard.press('v');
+  const vis = page.getByTestId('visualizer');
+  await expect(vis).toHaveAttribute('data-style', 'ring');
+
+  /** Share of lit pixels on the 2D canvas, or the brightness the WebGL renderer reports. */
+  const drawn = () =>
+    page.evaluate(() => {
+      const c = document.querySelector<HTMLCanvasElement>('[data-testid=visualizer] canvas')!;
+      if (c.dataset.lum !== undefined) return Number(c.dataset.lum) / 255;
+      const ctx = c.getContext('2d');
+      if (!ctx) return 0;
+      const d = ctx.getImageData(0, 0, c.width, c.height).data;
+      let lit = 0;
+      let n = 0;
+      for (let i = 0; i < d.length; i += 4 * 32, n++) if (d[i + 3]! > 30 && d[i]! + d[i + 1]! + d[i + 2]! > 60) lit++;
+      return lit / n;
+    });
+
+  const expected = ['ring', 'bars', 'mirror', 'scope', 'terrain', 'tunnel', 'galaxy', 'milkdrop', 'liquid', 'lyrics', 'ambient'];
+  const next = page.getByRole('button', { name: 'Next visualizer style' });
+  for (const [i, id] of expected.entries()) {
+    if (i) await next.click();
+    await expect(vis).toHaveAttribute('data-style', id);
+    // An empty canvas reads 0; the mock plays a plain tone, so e.g. bars stay low and scope is one thin line.
+    await expect.poll(drawn, { timeout: 8000, message: `style ${id} draws something` }).toBeGreaterThan(id === 'scope' ? 0.002 : 0.005);
+    if (id === 'lyrics') await expect(page.getByTestId('lyric-pulse')).toBeVisible();
+  }
+  await next.click();
+  await expect(vis).toHaveAttribute('data-style', 'ring');
+
+  // Menu
+  await page.getByRole('button', { name: 'Visualizer style', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Warp tunnel' }).click();
+  await expect(vis).toHaveAttribute('data-style', 'tunnel');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+
+  // Arrows switch styles only in fullscreen (outside they keep seeking).
+  await page.keyboard.press('f');
+  await expect(vis).toHaveAttribute('data-immersive', 'true');
+  await page.keyboard.press('ArrowRight');
+  await expect(vis).toHaveAttribute('data-style', 'galaxy');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await expect(vis).toHaveAttribute('data-style', 'terrain');
+  await page.keyboard.press('Escape');
+  await expect(vis).not.toHaveAttribute('data-immersive');
+
+  await page.reload();
+  await page.getByRole('button', { name: 'Full screen player' }).click();
+  await expect(page.getByTestId('visualizer')).toHaveAttribute('data-style', 'terrain');
+  expect(errors).toEqual([]);
+});

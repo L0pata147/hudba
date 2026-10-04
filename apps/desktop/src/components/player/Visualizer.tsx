@@ -1,41 +1,44 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { AudioLines, Maximize, Minimize, SkipBack, SkipForward } from 'lucide-react';
-import type { Song } from '@sonora/types';
-import { getAudioEngine, playerStore, usePlayer } from '@sonora/core';
-import { rgbToCss, type RGB } from '@sonora/ui';
+import { AudioLines, Check, ChevronLeft, ChevronRight, Maximize, Minimize, SkipBack, SkipForward } from 'lucide-react';
+import type { Song, VisualizerStyle } from '@sonora/types';
+import {
+  cycleVisualizerStyle,
+  getAudioEngine,
+  isPathScene,
+  normalizeVisualizerStyle,
+  playerStore,
+  preferencesStore,
+  sampleLevel,
+  usePlayer,
+  usePreferences,
+  visualizerStyleInfo,
+  visualizerStyles,
+} from '@sonora/core';
+import { rgbToCss } from '@sonora/ui';
 import { artworkUrl } from '../../lib/artwork';
 import { BeatDetector, bandLevels, bassLevel, logBands, smoothInto } from '../../lib/visualizer-math';
 import { usePalette } from '../../hooks/usePalette';
 import { isTauri } from '../../platform';
 import type { HtmlAudioEngine } from '../../platform/audio-engine';
 import { PauseGlyph, PlayGlyph } from '../ui/PlayButton';
+import type { Renderer, VisFrame } from './visualizer/types';
+import { createRingRenderer } from './visualizer/ring';
+import { createPathRenderer } from './visualizer/paths';
+import { createMilkdropRenderer } from './visualizer/milkdrop';
+import { createLiquidRenderer } from './visualizer/liquid';
+import { createAmbientRenderer } from './visualizer/ambient';
+import { LyricPulse } from './visualizer/LyricPulse';
 
-const BANDS = 72; // per half circle; mirrored → 144 points
-const LAYERS = 6;
+const BANDS = 72;
+const WAVE = 512;
 const HIDE_CONTROLS_MS = 2500;
-
-/** Lows at the top and bottom, highs on the sides → the ring moves all the way round. */
-const bandAt = (i: number, total: number) => {
-  const half = i < total / 2 ? i : total - 1 - i; // mirror left/right
-  const p = half / (total / 2 - 1); // 0 top … 1 bottom
-  return Math.round((1 - Math.abs(Math.cos(Math.PI * p))) * (BANDS - 1));
-};
+const STYLES = visualizerStyles('desktop');
 
 function getAnalyser(): AnalyserNode | null {
   const engine = getAudioEngine() as HtmlAudioEngine | null;
   return engine?.getVisualizerAnalyser?.() ?? null;
 }
-
-interface Particle {
-  a: number;
-  r: number;
-  v: number;
-  size: number;
-  hue: 0 | 1;
-}
-
-const lighten = (c: RGB, d = 70): RGB => ({ r: Math.min(255, c.r + d), g: Math.min(255, c.g + d), b: Math.min(255, c.b + d) });
 
 async function setNativeFullscreen(on: boolean, el: HTMLElement | null) {
   try {
@@ -52,10 +55,30 @@ async function setNativeFullscreen(on: boolean, el: HTMLElement | null) {
   }
 }
 
+function createRenderer(style: VisualizerStyle, canvas: HTMLCanvasElement, getUrl: () => string | undefined): Renderer | null {
+  switch (style) {
+    case 'ring':
+      return createRingRenderer(canvas);
+    case 'milkdrop':
+      return createMilkdropRenderer(canvas);
+    case 'liquid':
+      return createLiquidRenderer(canvas, getUrl);
+    case 'lyrics':
+      return createAmbientRenderer(canvas, 0.55);
+    case 'ambient':
+      return createAmbientRenderer(canvas);
+    default:
+      return isPathScene(style) ? createPathRenderer(canvas, style) : null;
+  }
+}
+
+const setStyle = (s: VisualizerStyle) => preferencesStore.getState().set('visualizerStyle', s);
+
 /**
- * Circular spectrum visualizer in the style of electronic-music channels:
- * a mirrored, glowing multi-layer ring with trails around the cover, beat
- * zoom/shake/flash, drifting particles and a slowly moving artwork backdrop.
+ * Full-screen-player visualizer with switchable styles. The host analyses the
+ * audio once per frame (spectrum, bass, beats, waveform) and hands it to the
+ * renderer of the selected style; the backdrop, cover, glow and beat flash
+ * around it follow the style's settings without React re-renders.
  */
 export function Visualizer({ song }: { song: Song }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -66,10 +89,16 @@ export function Visualizer({ song }: { song: Song }) {
   const palette = usePalette(song.coverArtId);
   const paletteRef = useRef(palette);
   paletteRef.current = palette;
+  const songRef = useRef(song);
+  songRef.current = song;
+  const style = normalizeVisualizerStyle(usePreferences((s) => s.visualizerStyle), 'desktop');
+  const info = visualizerStyleInfo(style);
   const playing = usePlayer((s) => s.status === 'playing' || s.status === 'buffering');
   const [unavailable, setUnavailable] = useState(false);
+  const [glFailed, setGlFailed] = useState(false);
   const [immersive, setImmersive] = useState(false);
   const [controls, setControls] = useState(true);
+  const [menu, setMenu] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const toggleImmersive = useCallback((on?: boolean) => {
@@ -80,22 +109,45 @@ export function Visualizer({ song }: { song: Song }) {
     });
   }, []);
 
-  /* ---------- immersive mode: keys, native fullscreen sync, auto-hiding controls ---------- */
+  const poke = useCallback(() => {
+    setControls(true);
+    clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => {
+      setControls(false);
+      setMenu(false);
+    }, HIDE_CONTROLS_MS);
+  }, []);
+
+  const cycle = useCallback(
+    (dir: 1 | -1) => {
+      setStyle(cycleVisualizerStyle(normalizeVisualizerStyle(preferencesStore.getState().visualizerStyle, 'desktop'), dir, 'desktop'));
+      if (immersive) poke();
+    },
+    [immersive, poke],
+  );
+
+  /* ---------- keys: F fullscreen, Esc leaves it, ←/→ switch styles in fullscreen ---------- */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-      if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const plain = !e.ctrlKey && !e.metaKey && !e.altKey;
+      if ((e.key === 'f' || e.key === 'F') && plain) {
         e.preventDefault();
         toggleImmersive();
-      } else if (e.key === 'Escape' && immersive) {
-        // Leave fullscreen first instead of closing the whole player.
+      } else if (e.key === 'Escape' && (immersive || menu)) {
+        // Close the menu / leave fullscreen first instead of closing the whole player.
         e.stopImmediatePropagation();
-        toggleImmersive(false);
+        if (menu) setMenu(false);
+        else toggleImmersive(false);
+      } else if (immersive && plain && !e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        cycle(e.key === 'ArrowRight' ? 1 : -1);
       }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [immersive, toggleImmersive]);
+  }, [immersive, menu, toggleImmersive, cycle]);
 
   useEffect(() => {
     if (isTauri) return;
@@ -107,11 +159,6 @@ export function Visualizer({ song }: { song: Song }) {
   // Leaving the player while immersive must also leave native fullscreen.
   useEffect(() => () => void setNativeFullscreen(false, null), []);
 
-  const poke = useCallback(() => {
-    setControls(true);
-    clearTimeout(hideTimer.current);
-    hideTimer.current = setTimeout(() => setControls(false), HIDE_CONTROLS_MS);
-  }, []);
   useEffect(() => {
     if (immersive) poke();
     else {
@@ -121,27 +168,33 @@ export function Visualizer({ song }: { song: Song }) {
     return () => clearTimeout(hideTimer.current);
   }, [immersive, poke]);
 
+  useEffect(() => setGlFailed(false), [style]);
+
   /* ---------- render loop ---------- */
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) return;
-    const buffer = document.createElement('canvas');
-    const bctx = buffer.getContext('2d');
-    if (!bctx) return;
+    if (!canvas) return;
+    const getUrl = () => artworkUrl(songRef.current.coverArtId, 'hero');
+    const renderer = createRenderer(style, canvas, getUrl);
+    if (!renderer) {
+      if (style === 'milkdrop') setGlFailed(true);
+      return;
+    }
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const conic = typeof ctx.createConicGradient === 'function';
+    const styleInfo = visualizerStyleInfo(style);
     let raf = 0;
+    let last = 0;
     let bands: [number, number][] = [];
     let freq = new Uint8Array(0);
+    let rawWave = new Float32Array(0);
     let lowBins: [number, number] = [1, 8];
     const levels = new Float32Array(BANDS);
     const smooth = new Float32Array(BANDS);
+    const wave = new Float32Array(WAVE);
     const beats = new BeatDetector();
     let bass = 0;
     let kick = 0;
     let t = 0;
-    let particles: Particle[] = [];
 
     const resize = () => {
       const { width, height } = canvas.getBoundingClientRect();
@@ -149,221 +202,159 @@ export function Visualizer({ song }: { song: Song }) {
       const dpr = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(2_300_000 / Math.max(1, width * height)));
       canvas.width = Math.max(1, Math.round(width * dpr));
       canvas.height = Math.max(1, Math.round(height * dpr));
-      // Trails are kept at half resolution: 4× cheaper and naturally soft.
-      buffer.width = Math.max(1, Math.round(canvas.width / 2));
-      buffer.height = Math.max(1, Math.round(canvas.height / 2));
-      const count = reduced ? 0 : width < 700 ? 70 : 150;
-      particles = Array.from({ length: count }, () => spawn(true));
     };
-    const spawn = (anywhere = false): Particle => ({
-      a: Math.random() * Math.PI * 2,
-      r: anywhere ? 0.3 + Math.random() * 1.6 : 0.85 + Math.random() * 0.2,
-      v: 0.0012 + Math.random() * 0.003,
-      size: 0.6 + Math.random() * 1.8,
-      hue: Math.random() < 0.5 ? 0 : 1,
-    });
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
 
-    const gradient = (alpha: number, c1: RGB, c2: RGB, cx: number, cy: number, rot: number): CanvasGradient | string => {
-      if (!conic) return rgbToCss(c1, alpha);
-      const g = ctx.createConicGradient(rot, cx, cy);
-      g.addColorStop(0, rgbToCss(c1, alpha));
-      g.addColorStop(0.5, rgbToCss(c2, alpha));
-      g.addColorStop(1, rgbToCss(c1, alpha));
-      return g;
+    const frame: VisFrame = {
+      t: 0,
+      dt: 1 / 60,
+      w: 1,
+      h: 1,
+      dpr: 1,
+      levels: smooth,
+      bass: 0,
+      kick: 0,
+      freq,
+      wave,
+      palette: paletteRef.current,
+      reduced,
+      shakeX: 0,
+      shakeY: 0,
+      pulse: 1,
     };
 
-    const frame = () => {
-      raf = requestAnimationFrame(frame);
-      t += 1 / 60;
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      const dt = last ? Math.min(0.05, Math.max(0.001, (now - last) / 1000)) : 1 / 60;
+      last = now;
+      t += dt;
       const analyser = getAnalyser();
       setUnavailable((u) => (u === !analyser ? u : !analyser));
       let beat = false;
       if (analyser) {
         if (freq.length !== analyser.frequencyBinCount) {
           freq = new Uint8Array(analyser.frequencyBinCount);
+          rawWave = new Float32Array(analyser.fftSize);
           bands = logBands(analyser.fftSize, analyser.context.sampleRate, BANDS);
           const binHz = analyser.context.sampleRate / analyser.fftSize;
           lowBins = [Math.max(1, Math.floor(30 / binHz)), Math.ceil(180 / binHz)];
         }
         analyser.getByteFrequencyData(freq);
+        analyser.getFloatTimeDomainData(rawWave);
+        const step = rawWave.length / WAVE;
+        for (let i = 0; i < WAVE; i++) wave[i] = rawWave[Math.floor(i * step)] ?? 0;
         bandLevels(freq, bands, levels);
         const b = bassLevel(freq, analyser.fftSize, analyser.context.sampleRate);
         bass += (b - bass) * (b > bass ? 0.5 : 0.08);
         beat = beats.update(freq, lowBins[0], lowBins[1], t);
       } else {
         levels.fill(0);
+        wave.fill(0);
         bass *= 0.9;
       }
       smoothInto(smooth, levels);
       if (beat && !reduced) kick = 1;
-      kick *= 0.88;
+      kick *= Math.pow(0.88, dt * 60);
 
-      const w = canvas.width;
-      const h = canvas.height;
-      const cx = w / 2;
-      const cy = h / 2;
-      const dpr = w / Math.max(1, canvas.clientWidth);
-      const base = Math.min(w, h) * 0.27;
-      const pulse = reduced ? 1 : 1 + bass * 0.06 + kick * 0.07;
-      const R = base * pulse;
-      const amp = base * (reduced ? 0.35 : 0.6);
-      const [c1, c2] = paletteRef.current;
-      const rot = t * 0.35;
-      const shakeX = reduced ? 0 : (Math.random() - 0.5) * kick * 10 * dpr;
-      const shakeY = reduced ? 0 : (Math.random() - 0.5) * kick * 10 * dpr;
+      const cw = canvas.clientWidth || 1;
+      const dpr = canvas.width / cw;
+      frame.t = t;
+      frame.dt = dt;
+      frame.dpr = dpr;
+      frame.w = canvas.width / dpr;
+      frame.h = canvas.height / dpr;
+      frame.bass = bass;
+      frame.kick = kick;
+      frame.freq = freq;
+      frame.palette = paletteRef.current;
+      frame.pulse = reduced ? 1 : 1 + bass * 0.06 + kick * 0.07;
+      frame.shakeX = styleInfo.shake && !reduced ? (Math.random() - 0.5) * kick * 10 * dpr : 0;
+      frame.shakeY = styleInfo.shake && !reduced ? (Math.random() - 0.5) * kick * 10 * dpr : 0;
+      renderer.draw(frame);
 
-      // 1) Trails: previous frame, slightly enlarged and faded → strands radiate outwards.
-      if (!reduced) {
-        bctx.clearRect(0, 0, buffer.width, buffer.height);
-        bctx.drawImage(canvas, 0, 0, buffer.width, buffer.height);
-      }
-      ctx.clearRect(0, 0, w, h);
-      if (!reduced) {
-        const z = 1.012 + kick * 0.01;
-        ctx.save();
-        ctx.globalAlpha = 0.78;
-        ctx.translate(cx, cy);
-        ctx.scale(z, z);
-        ctx.rotate(0.0015);
-        ctx.drawImage(buffer, -cx, -cy, w, h);
-        ctx.restore();
-      }
-
-      ctx.save();
-      ctx.translate(shakeX, shakeY);
-      ctx.globalCompositeOperation = 'lighter';
-
-      // 2) Particles drifting out from the ring; bass and beats push them faster.
-      const maxR = Math.hypot(cx, cy) / base;
-      const speed = 1 + bass * 3 + kick * 6;
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i]!;
-        p.r += p.v * speed;
-        if (p.r > maxR) particles[i] = spawn();
-        const pr = p.r * base;
-        const x = cx + Math.cos(p.a) * pr;
-        const y = cy + Math.sin(p.a) * pr;
-        const fade = Math.min(1, (p.r - 0.8) * 2) * (1 - p.r / maxR);
-        if (fade <= 0) continue;
-        ctx.fillStyle = rgbToCss(p.hue ? c2 : c1, 0.65 * fade);
-        const s = p.size * dpr * (1 + kick * 0.6);
-        ctx.fillRect(x - s / 2, y - s / 2, s, s);
-      }
-
-      // 3) The ring: several wobbling strands with a rotating two-colour gradient.
-      const total = BANDS * 2;
-      for (let layer = LAYERS - 1; layer >= 0; layer--) {
-        const k = layer / LAYERS;
-        const pts: [number, number][] = [];
-        for (let i = 0; i < total; i++) {
-          const v = smooth[bandAt(i, total)]! * (1 - k * 0.35);
-          const wobble = Math.sin(i * 0.35 + t * (1.2 + layer * 0.7) + layer) * base * 0.012 * (layer + 1);
-          const r = R + v * amp + wobble + layer * 1.6 * dpr;
-          const a = (i / total) * Math.PI * 2 - Math.PI / 2;
-          pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
-        }
-        ctx.beginPath();
-        const mid = (p: [number, number], q: [number, number]) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2] as const;
-        const start = mid(pts[total - 1]!, pts[0]!);
-        ctx.moveTo(start[0], start[1]);
-        for (let i = 0; i < total; i++) {
-          const p = pts[i]!;
-          const m = mid(p, pts[(i + 1) % total]!);
-          ctx.quadraticCurveTo(p[0], p[1], m[0], m[1]);
-        }
-        ctx.closePath();
-        if (layer === 0) {
-          // Neon glow: wide faint strokes under a bright core (cheaper than shadowBlur).
-          const boost = 1 + kick * 0.8;
-          for (const [width, alpha] of [[20, 0.06], [11, 0.11], [5, 0.28]] as const) {
-            ctx.strokeStyle = gradient(Math.min(1, alpha * boost), c1, c2, cx, cy, rot);
-            ctx.lineWidth = width * dpr;
-            ctx.stroke();
-          }
-          ctx.strokeStyle = gradient(0.95, lighten(c1), lighten(c2), cx, cy, rot);
-          ctx.lineWidth = 2.4 * dpr;
-        } else {
-          ctx.strokeStyle = gradient(0.5 - k * 0.35, c1, c2, cx, cy, rot + layer * 0.4);
-          ctx.lineWidth = 1.1 * dpr;
-        }
-        ctx.stroke();
-
-        if (layer === 0) {
-          // Dust on the strands.
-          for (let i = 0; i < total; i++) {
-            const v = smooth[bandAt(i, total)]!;
-            if (v < 0.08) continue;
-            const a = (i / total) * Math.PI * 2 - Math.PI / 2;
-            ctx.fillStyle = rgbToCss(i % 2 ? c2 : c1, 0.6);
-            const dots = 1 + Math.round(v * 3);
-            for (let d = 0; d < dots; d++) {
-              const rr = R + v * amp * (0.25 + 0.75 * ((d + 1) / (dots + 1))) + Math.sin(t * 3 + i + d) * 2 * dpr;
-              const s = (1.2 + v) * dpr;
-              ctx.fillRect(cx + Math.cos(a) * rr - s / 2, cy + Math.sin(a) * rr - s / 2, s, s);
-            }
-          }
+      // Cover, glow, flash and lyric words follow without React re-renders.
+      const cover = coverRef.current;
+      if (cover) {
+        const min = Math.min(frame.w, frame.h);
+        const mode = styleInfo.cover;
+        cover.style.display = mode === 'none' ? 'none' : '';
+        if (mode !== 'none') {
+          const size = mode === 'ring' ? min * 0.27 * 2 * 0.92 : mode === 'square' ? min * 0.3 : min * 0.16;
+          const scale = mode === 'square' ? (reduced ? 1 : 1 + bass * 0.03 + kick * 0.05) : frame.pulse;
+          cover.style.width = `${size}px`;
+          cover.style.height = `${size}px`;
+          cover.style.borderRadius = mode === 'square' ? '14px' : '50%';
+          cover.style.transform = `translate(calc(-50% + ${frame.shakeX / dpr}px), calc(-50% + ${frame.shakeY / dpr}px)) scale(${scale})`;
         }
       }
-      ctx.restore();
-
-      // 4) Cover, glow and beat flash follow without React re-renders.
-      const coverSize = (base * 2 * 0.92) / dpr;
-      if (coverRef.current) {
-        coverRef.current.style.width = `${coverSize}px`;
-        coverRef.current.style.height = `${coverSize}px`;
-        coverRef.current.style.transform = `translate(calc(-50% + ${shakeX / dpr}px), calc(-50% + ${shakeY / dpr}px)) scale(${pulse})`;
-      }
-      if (glowRef.current) glowRef.current.style.opacity = String(0.25 + bass * 0.6 + kick * 0.4);
+      if (glowRef.current) glowRef.current.style.opacity = styleInfo.glow ? String(0.25 + bass * 0.6 + kick * 0.4) : '0';
       if (flashRef.current) {
         // Only composite the flash layer while it is visible.
-        flashRef.current.style.opacity = String(kick * 0.16);
-        flashRef.current.style.visibility = kick > 0.02 ? 'visible' : 'hidden';
+        const flash = styleInfo.flash ? kick * 0.16 : 0;
+        flashRef.current.style.opacity = String(flash);
+        flashRef.current.style.visibility = flash > 0.003 ? 'visible' : 'hidden';
+      }
+      if (style === 'lyrics' && rootRef.current) {
+        const words = rootRef.current.querySelectorAll<HTMLElement>('[data-word]');
+        const n = words.length;
+        words.forEach((el, i) => {
+          const v = reduced ? 0 : sampleLevel(smooth, 0.05 + (0.85 * (i + 0.5)) / Math.max(1, n));
+          // Mostly a lift; the scale stays small so a word never grows into its neighbours.
+          el.style.transform = `translateY(${-v * 18 - kick * 4}px) scale(${1 + v * 0.08 + kick * 0.04})`;
+          el.style.opacity = String(0.82 + v * 0.18);
+        });
       }
     };
-    raf = requestAnimationFrame(frame);
+    raf = requestAnimationFrame(loop);
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      renderer.dispose?.();
     };
-  }, []);
+  }, [style]);
 
   const art = artworkUrl(song.coverArtId, 'full');
   const [c1, c2] = palette;
+  const hidden = immersive && !controls;
   return (
     <div
       ref={rootRef}
       data-testid="visualizer"
+      data-style={style}
       data-immersive={immersive || undefined}
       onPointerMove={immersive ? poke : undefined}
       onDoubleClick={() => toggleImmersive()}
       className={clsx(
         'relative overflow-hidden bg-black select-none',
         immersive ? 'fixed inset-0 z-[95]' : 'size-full min-h-[320px] rounded-xl',
-        immersive && !controls && 'cursor-none',
+        hidden && 'cursor-none',
       )}
     >
       {/* Backdrop: slow Ken Burns drift over the blurred cover, vignette and grain */}
       {/* Small image + one-off blur; only `transform` animates, which the compositor handles cheaply. */}
-      {art && (
+      {art && info.backdrop && (
         <div className="animate-kenburns absolute inset-0 will-change-transform" aria-hidden>
           <img src={artworkUrl(song.coverArtId, 'thumb') ?? art} alt="" className="size-full object-cover opacity-55 blur-2xl" />
         </div>
       )}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(0,0,0,0.75)_100%)]" aria-hidden />
+      {info.backdrop && <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(0,0,0,0.75)_100%)]" aria-hidden />}
       <div className="film-grain absolute inset-0 opacity-[0.045]" aria-hidden />
       <div
         ref={glowRef}
         aria-hidden
-        className="absolute inset-0"
+        className="absolute inset-0 opacity-0"
         style={{ background: `radial-gradient(circle at 50% 50%, ${rgbToCss(c1, 0.32)} 0%, ${rgbToCss(c2, 0.12)} 35%, transparent 60%)` }}
       />
-      <canvas ref={canvasRef} className="absolute inset-0 size-full" aria-hidden />
-      <div ref={coverRef} className="absolute top-1/2 left-1/2 overflow-hidden rounded-full shadow-[0_0_40px_rgba(0,0,0,0.6)]" aria-hidden>
+      <canvas key={style === 'milkdrop' ? 'gl' : '2d'} ref={canvasRef} className="absolute inset-0 size-full" aria-hidden />
+      {style === 'scope' && (
+        <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(0deg,rgba(0,0,0,0.22)_0px,rgba(0,0,0,0.22)_1px,transparent_1px,transparent_3px)]" aria-hidden />
+      )}
+      <div ref={coverRef} className="absolute top-1/2 left-1/2 overflow-hidden rounded-full shadow-[0_0_40px_rgba(0,0,0,0.6)]" style={{ display: 'none' }} aria-hidden>
         {art ? <img src={art} alt="" className="size-full object-cover" draggable={false} /> : <div className="size-full bg-surface-active" />}
       </div>
+      {style === 'lyrics' && <LyricPulse song={song} color={c1} immersive={immersive} />}
       <div ref={flashRef} className="pointer-events-none invisible absolute inset-0 bg-white opacity-0" aria-hidden />
 
       <div className={clsx('absolute bottom-5 left-6 max-w-[70%] drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] transition-opacity duration-500', immersive && 'bottom-10 left-10')}>
@@ -371,8 +362,53 @@ export function Visualizer({ song }: { song: Song }) {
         <p className={clsx('truncate font-semibold tracking-wide text-white/75 uppercase', immersive ? 'text-[18px]' : 'text-[14px]')}>{song.artist}</p>
       </div>
 
+      {/* Style switcher: always visible in the player, auto-hiding in fullscreen */}
+      <div
+        onDoubleClick={(e) => e.stopPropagation()}
+        className={clsx('absolute top-3 left-3 transition-opacity duration-300', hidden && 'pointer-events-none opacity-0')}
+      >
+        <div className="flex items-center rounded-full bg-black/45 p-1 text-white backdrop-blur-md">
+          <button type="button" aria-label="Previous visualizer style" title="Previous style (← in fullscreen)" onClick={() => cycle(-1)} className="rounded-full p-1.5 hover:bg-white/10">
+            <ChevronLeft className="size-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="Visualizer style"
+            aria-haspopup="menu"
+            aria-expanded={menu}
+            onClick={() => setMenu((m) => !m)}
+            className="min-w-[8.5rem] rounded-full px-2 py-1 text-[13px] font-semibold hover:bg-white/10"
+          >
+            {info.name}
+          </button>
+          <button type="button" aria-label="Next visualizer style" title="Next style (→ in fullscreen)" onClick={() => cycle(1)} className="rounded-full p-1.5 hover:bg-white/10">
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+        {menu && (
+          <div role="menu" aria-label="Visualizer styles" className="mt-2 w-52 rounded-xl bg-black/75 p-1 text-white shadow-xl backdrop-blur-md">
+            {STYLES.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                role="menuitemradio"
+                aria-checked={s.id === style}
+                onClick={() => {
+                  setStyle(s.id);
+                  setMenu(false);
+                }}
+                className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left text-[13px] hover:bg-white/10"
+              >
+                {s.name}
+                {s.id === style && <Check className="size-4" />}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Controls: always visible in the player, auto-hiding in fullscreen */}
-      <div className={clsx('absolute top-3 right-3 flex gap-2 transition-opacity duration-300', immersive && !controls && 'pointer-events-none opacity-0')}>
+      <div className={clsx('absolute top-3 right-3 flex gap-2 transition-opacity duration-300', hidden && 'pointer-events-none opacity-0')}>
         <button
           type="button"
           onClick={(e) => {
@@ -411,9 +447,10 @@ export function Visualizer({ song }: { song: Song }) {
           </button>
         </div>
       )}
-      {unavailable && (
-        <p className="absolute top-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-[12.5px] text-white/80">
-          <AudioLines className="size-4" /> Visualizer needs cross-origin audio from your server
+      {(unavailable || glFailed) && (
+        <p className="absolute top-16 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-[12.5px] text-white/80">
+          <AudioLines className="size-4" />
+          {glFailed ? 'Milkdrop needs WebGL 2, which this device does not offer' : 'Visualizer needs cross-origin audio from your server'}
         </p>
       )}
     </div>

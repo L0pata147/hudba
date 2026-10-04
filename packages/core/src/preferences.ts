@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import type { Preferences } from '@sonora/types';
 import { lazyStorage } from './platform';
 import { DEFAULT_EQUALIZER, normalizeEqualizer } from './equalizer';
+import { normalizeVisualizerStyle } from './visualizer-styles';
 
 export const DEFAULT_PREFERENCES: Preferences = {
   theme: 'dark',
@@ -18,6 +19,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   scrobble: true,
   equalizer: DEFAULT_EQUALIZER,
   visualizer: false,
+  visualizerStyle: 'ring',
 };
 
 export interface PreferencesState extends Preferences {
@@ -45,7 +47,12 @@ export const preferencesStore = createStore<PreferencesState>()(
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<Preferences>;
         // Older saved preferences have no equalizer; invalid values are repaired.
-        return { ...current, ...p, equalizer: normalizeEqualizer(p.equalizer ?? current.equalizer) };
+        return {
+          ...current,
+          ...p,
+          equalizer: normalizeEqualizer(p.equalizer ?? current.equalizer),
+          visualizerStyle: normalizeVisualizerStyle(p.visualizerStyle),
+        };
       },
     },
   ),
