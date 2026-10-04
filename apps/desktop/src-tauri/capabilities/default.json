@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Capabilities for the main Sonora window",
   "windows": ["main"],
-  "permissions": ["core:default", "window-state:default"]
+  "permissions": ["core:default", "window-state:default", "core:window:allow-set-fullscreen"]
 }

@@ -179,6 +179,20 @@ test('visualizer: toggles with V, animates with the music and is remembered', as
   expect(pausedLit).toBeLessThan(playingLit * 0.9);
   await fullPlayer.getByRole('button', { name: 'Play', exact: true }).click();
 
+  // Immersive fullscreen: F enters, controls and cursor hide when idle, Esc leaves it but keeps the player open.
+  await page.keyboard.press('f');
+  await expect(vis).toHaveAttribute('data-immersive', 'true');
+  const exit = vis.getByRole('button', { name: 'Exit fullscreen (F)' });
+  await expect(exit).toBeVisible();
+  await expect(vis).toHaveClass(/cursor-none/, { timeout: 5000 });
+  await expect(exit.locator('..')).toHaveCSS('opacity', '0');
+  await page.mouse.move(200, 200);
+  await page.mouse.move(220, 210);
+  await expect(vis).not.toHaveClass(/cursor-none/);
+  await page.keyboard.press('Escape');
+  await expect(vis).not.toHaveAttribute('data-immersive');
+  await expect(fullPlayer).toBeVisible();
+
   await page.reload();
   await page.getByRole('button', { name: 'Full screen player' }).click();
   await expect(page.getByTestId('visualizer')).toBeVisible();

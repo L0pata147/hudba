@@ -225,10 +225,15 @@ Tested: an offline-rendered DSP test measures the real filter chain (Bass boost:
 
 ## Visualizer
 
-Full-screen player → waveform icon or `V`. A mirrored, multi-layer ring (lows at the top and bottom, highs on the sides) is drawn on a canvas around the cover, over a blurred copy of the artwork. The ring colour comes from the artwork (grey covers give white), the ring and a glow pulse with the bass (30–150 Hz).
+Full-screen player → waveform icon or `V`. A mirrored, multi-layer ring (lows at the top and bottom, highs on the sides) is drawn on a canvas around the cover, over a slowly drifting, blurred copy of the artwork with a vignette and film grain.
 
+- **Colours** — two dominant hues are taken from the artwork; the ring is stroked with a rotating gradient between them (grey covers give white/ice blue).
+- **Beat detection** — spectral flux on the bass bins against a rolling mean + 1.5σ (min. 240 ms between beats). On a beat the ring and cover punch in, the picture shakes slightly and flashes.
+- **Trails** — each frame the previous one is redrawn slightly enlarged and faded, so the ring leaves an afterimage that flows outward.
+- **Particles** — dust drifts out from the centre, faster with the bass.
+- **Fullscreen** — `F`, double-click or the button in the corner. The window goes fullscreen (Tauri window / browser Fullscreen API), controls and cursor hide after 2.5 s without movement; `Esc` or `F` leaves it.
 - Reads a Web Audio `AnalyserNode` that taps the music **before** volume/EQ, so it looks the same at any volume. Like the EQ it needs CORS on the stream (Navidrome sends it) and shows a note if the server blocks it.
-- Animation runs outside React (`requestAnimationFrame`), glow is drawn with layered strokes instead of `shadowBlur`; 60 fps in headless Chromium without a GPU. `prefers-reduced-motion` turns the pulse off.
+- Animation runs outside React (`requestAnimationFrame`), glow is drawn with layered strokes instead of `shadowBlur`, the canvas is capped at ~2.3 MP and trails use a half-resolution buffer. `prefers-reduced-motion` turns off the pulse, shake, flash and particles.
 - Mobile app: not yet — expo-audio offers audio sampling, which a future native visualizer could use.
 
 ## Radio

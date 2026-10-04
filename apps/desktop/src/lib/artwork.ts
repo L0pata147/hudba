@@ -1,5 +1,6 @@
 import { tryGetNavidrome } from '@sonora/core';
 import { FALLBACK_BACKDROP, toBackdropColor, type RGB } from '@sonora/ui';
+import { paletteFromPixels } from './visualizer-math';
 
 /** Artwork sizes we request, so the server-side resize cache is well reused. */
 export const ART_SIZES = { thumb: 96, card: 300, hero: 600, full: 1000 } as const;
@@ -59,6 +60,37 @@ export function extractDominantColor(src: string): Promise<RGB> {
       }
     };
     img.onerror = () => resolve(FALLBACK_BACKDROP);
+    img.src = src;
+  });
+}
+
+const paletteCache = new Map<string, [RGB, RGB]>();
+
+/** Two neon colours for the visualizer, taken from the artwork. */
+export function extractPalette(src: string): Promise<[RGB, RGB]> {
+  const cached = paletteCache.get(src);
+  if (cached) return Promise.resolve(cached);
+  return new Promise((resolve) => {
+    const fallback: [RGB, RGB] = [{ r: 245, g: 245, b: 250 }, { r: 150, g: 200, b: 255 }];
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const size = 32;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return resolve(fallback);
+        ctx.drawImage(img, 0, 0, size, size);
+        const pal = paletteFromPixels(ctx.getImageData(0, 0, size, size).data);
+        paletteCache.set(src, pal);
+        resolve(pal);
+      } catch {
+        resolve(fallback);
+      }
+    };
+    img.onerror = () => resolve(fallback);
     img.src = src;
   });
 }

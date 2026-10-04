@@ -66,3 +66,74 @@ export function neonColor(c: RGB): RGB {
   if (s < 0.12) return { r: 245, g: 245, b: 250 };
   return hslToRgb(h, 0.95, 0.6);
 }
+
+/**
+ * Onset ("beat") detector: positive spectral flux in the low bins compared
+ * with its recent average. Fires on kicks/drops, not on a sustained bass note.
+ */
+export class BeatDetector {
+  private prev: Float32Array | null = null;
+  private history: number[] = [];
+  private lastBeat = -Infinity;
+
+  constructor(
+    private readonly opts = { window: 45, sensitivity: 1.5, minGap: 0.24, minFlux: 0.02 },
+  ) {}
+
+  /** `a..b` = bin range to watch (≈ 30–180 Hz); `time` in seconds. */
+  update(freq: Uint8Array, a: number, b: number, time: number): boolean {
+    const n = Math.max(1, b - a);
+    if (!this.prev || this.prev.length !== n) this.prev = new Float32Array(n);
+    let flux = 0;
+    for (let k = 0; k < n; k++) {
+      const v = (freq[a + k] ?? 0) / 255;
+      const d = v - this.prev[k]!;
+      if (d > 0) flux += d;
+      this.prev[k] = v;
+    }
+    flux /= n;
+    const h = this.history;
+    let beat = false;
+    if (h.length >= 10) {
+      const mean = h.reduce((s, x) => s + x, 0) / h.length;
+      const std = Math.sqrt(h.reduce((s, x) => s + (x - mean) ** 2, 0) / h.length);
+      beat = flux > mean + this.opts.sensitivity * std && flux > this.opts.minFlux && time - this.lastBeat > this.opts.minGap;
+    }
+    h.push(flux);
+    if (h.length > this.opts.window) h.shift();
+    if (beat) this.lastBeat = time;
+    return beat;
+  }
+}
+
+/**
+ * Two neon colours from artwork pixels (RGBA): the strongest hue and a second,
+ * clearly different one. Grey artwork gives white + icy blue.
+ */
+export function paletteFromPixels(data: Uint8ClampedArray | Uint8Array): [RGB, RGB] {
+  const BINS = 24;
+  const weights = new Float64Array(BINS);
+  let satTotal = 0;
+  let count = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const c = { r: data[i]!, g: data[i + 1]!, b: data[i + 2]! };
+    const { h, s, l } = rgbToHsl(c);
+    count++;
+    satTotal += s;
+    if (l < 0.12 || l > 0.92) continue;
+    weights[Math.floor((h / 360) * BINS) % BINS]! += s * s;
+  }
+  if (!count || satTotal / count < 0.1) return [{ r: 245, g: 245, b: 250 }, { r: 150, g: 200, b: 255 }];
+  let first = 0;
+  for (let i = 1; i < BINS; i++) if (weights[i]! > weights[first]!) first = i;
+  let second = -1;
+  for (let i = 0; i < BINS; i++) {
+    const dist = Math.min(Math.abs(i - first), BINS - Math.abs(i - first));
+    if (dist < 3) continue;
+    if (weights[i]! >= weights[first]! * 0.2 && (second < 0 || weights[i]! > weights[second]!)) second = i;
+  }
+  const hue = (bin: number) => ((bin + 0.5) / BINS) * 360;
+  const h1 = hue(first);
+  const h2 = second >= 0 ? hue(second) : h1 + 45;
+  return [hslToRgb(h1, 0.95, 0.6), hslToRgb(h2, 0.95, 0.62)];
+}
