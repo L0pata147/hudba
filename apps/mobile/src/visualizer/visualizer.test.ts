@@ -72,3 +72,25 @@ describe('mobile ring', () => {
     expect(f.particles).toEqual(['', '']);
   });
 });
+
+describe('mobile waveform', () => {
+  it('aligns snapshots at a rising zero crossing so the scope trace stands still', async () => {
+    const { alignedWave } = await import('./analyser');
+    const a = alignedWave(android(sine(440, 0.5)).slice(37));
+    const b = alignedWave(android(sine(440, 0.5)).slice(91));
+    expect(a).toHaveLength(256);
+    expect(Math.abs(a[0]!)).toBeLessThan(0.1); // starts at the zero crossing (amplitude 0.5)
+    const diff = a.slice(0, 120).reduce((m, v, i) => Math.max(m, Math.abs(v - b[i]!)), 0);
+    expect(diff).toBeLessThan(0.08);
+  });
+
+  it('the shared step eases the waveform and drops it when data stops', async () => {
+    const { stepCommon, WAVE_POINTS } = await import('./ring');
+    const s = createRingState();
+    const tw = new Array<number>(WAVE_POINTS).fill(0.5);
+    for (let i = 0; i < 30; i++) stepCommon(s, { target: [], targetBass: 0, fresh: 1, beat: 0, reduced: false, targetWave: tw }, 1 / 60);
+    expect(s.wave[10]!).toBeGreaterThan(0.45);
+    for (let i = 0; i < 60; i++) stepCommon(s, { target: [], targetBass: 0, fresh: 0, beat: 0, reduced: false, targetWave: tw }, 1 / 60);
+    expect(Math.abs(s.wave[10]!)).toBeLessThan(0.01);
+  });
+});

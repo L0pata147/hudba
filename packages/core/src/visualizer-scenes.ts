@@ -417,13 +417,13 @@ export interface GalaxyState extends Seeded {
 export function initGalaxy(quality: 0 | 1, seed = 29): GalaxyState {
   'worklet';
   const s: GalaxyState = { seed, r: [], a: [], size: [] };
-  const n = quality ? 3800 : 260;
+  const n = quality ? 3800 : 420;
   for (let k = 0; k < n; k++) {
     const r = Math.pow(rnd(s), 0.75);
     const spread = (rnd(s) - 0.5) * (0.9 - r * 0.5);
     s.r.push(r);
     s.a.push(((k % 3) * Math.PI * 2) / 3 + spread);
-    s.size.push(quality ? 0.8 + rnd(s) * 1.7 : 1.1 + rnd(s) * 1.6);
+    s.size.push(quality ? 0.8 + rnd(s) * 1.7 : 1.3 + rnd(s) * 2);
   }
   return s;
 }

@@ -225,19 +225,28 @@ Tested: an offline-rendered DSP test measures the real filter chain (Bass boost:
 
 ## Visualizer
 
-Full-screen player → waveform icon or `V`. A mirrored, multi-layer ring (lows at the top and bottom, highs on the sides) is drawn on a canvas around the cover, over a slowly drifting, blurred copy of the artwork with a vignette and film grain.
+Full-screen player → waveform icon or `V`. Eleven styles (ten on mobile), switched with the pill in the top-left corner (`‹ name ›`, tap the name for a list on desktop), with `←`/`→` in fullscreen on desktop or by swiping left/right in fullscreen on the phone. The choice is remembered.
 
-- **Colours** — two dominant hues are taken from the artwork; the ring is stroked with a rotating gradient between them (grey covers give white/ice blue).
-- **Beat detection** — spectral flux on the bass bins against a rolling mean + 1.5σ (min. 240 ms between beats). On a beat the ring and cover punch in, the picture shakes slightly and flashes.
-- **Trails** — each frame the previous one is redrawn slightly enlarged and faded, so the ring leaves an afterimage that flows outward.
-- **Particles** — dust drifts out from the centre, faster with the bass.
-- **Fullscreen** — `F`, double-click or the button in the corner. The window goes fullscreen (Tauri window / browser Fullscreen API), controls and cursor hide after 2.5 s without movement; `Esc` or `F` leaves it.
-- Reads a Web Audio `AnalyserNode` that taps the music **before** volume/EQ, so it looks the same at any volume. Like the EQ it needs CORS on the stream (Navidrome sends it) and shows a note if the server blocks it.
-- Animation runs outside React (`requestAnimationFrame`), glow is drawn with layered strokes instead of `shadowBlur`, the canvas is capped at ~2.3 MP and trails use a half-resolution buffer. `prefers-reduced-motion` turns off the pulse, shake, flash and particles.
-- **Mobile app** (Android/iOS): full-screen player → waveform icon. Same ring, colours, beats, echoes and particles, drawn with `react-native-svg` and animated on the UI thread (Reanimated worklets in `apps/mobile/src/visualizer/ring.ts`). Tap it for fullscreen (status bar hidden, controls hide after 2.5 s, Back leaves it).
-  - Audio comes from expo-audio's sample stream (Android `Visualizer` API: 1024 8-bit samples ~10×/s), turned into a spectrum by an FFT in JS (`byteSpectrum` in `@sonora/core`). Because only ~10 short snapshots per second arrive, beats are caught less reliably than on desktop; the bass pulse is continuous.
-  - Android requires the **microphone permission** for this API (nothing is recorded); the visualizer asks for it with an explanation, and without it the ring just idles.
-  - Colours: the cover is fetched at 32 px (Navidrome serves it as JPEG) and decoded with `jpeg-js`; the accent colour is used until then.
+| Style | What it does |
+| --- | --- |
+| Neon ring | Mirrored multi-layer ring around the cover (lows at the top/bottom, highs on the sides), rotating two-colour gradient, trails, particles, beat punch/shake/flash |
+| Spectrum bars | Winamp-style bars with falling peak caps and a reflection |
+| Mirror horizon | Bars to the left/right of the cover, mirrored below a horizon line |
+| Oscilloscope | The waveform itself, triggered on a rising zero crossing so it stands still, with phosphor afterglow, grid and (desktop) scanlines |
+| Pulsar terrain | *Unknown Pleasures*-style stacked spectrum history scrolling away in perspective, rows hide the ones behind |
+| Warp tunnel | Hexagons deformed by the spectrum fly at you, star streaks; bass and beats speed it up |
+| Galaxy | Tilted spiral of thousands of stars (hundreds on mobile) spinning with the bass, sparkling with the highs |
+| Milkdrop *(desktop)* | WebGL2 feedback: each frame re-samples the last one zoomed, rotated and warped (plain / ripple / kaleidoscope, changing every ~18 s), with the waveform and spectrum splatted on top |
+| Liquid cover | The cover breathes with the bass, ripples like liquid and snaps into big pixels on beats |
+| Lyric pulse | The current (synced) lyric line in big words, each word lifted by its own part of the spectrum; falls back to the title |
+| Ambient | Slow, soft colour fields from the cover palette that breathe with the bass |
+
+- **Colours** — two dominant hues from the cover (grey covers give white/ice blue).
+- **Beats** — spectral flux on the bass bins against a rolling mean + σ (min. 240 ms apart).
+- **Fullscreen** — `F`, double-click/tap or the corner button; the window goes fullscreen (Tauri window / browser Fullscreen API), controls and cursor hide after 2.5 s; `Esc`/`F` (Back on Android) leaves it.
+- **Shared code** — bars, mirror, scope, terrain, tunnel and galaxy are one implementation in `@sonora/core` (`visualizer-scenes.ts`): each scene produces SVG path strings plus "paint slots". Desktop draws them with `Path2D` on a canvas; mobile runs the same functions as Reanimated worklets on the UI thread and feeds them to `react-native-svg`.
+- **Desktop audio** — a Web Audio `AnalyserNode` tapping the music **before** volume/EQ, so it looks the same at any volume. Like the EQ it needs CORS on the stream (Navidrome sends it) and shows a note if the server blocks it. All styles run at ~60 fps in headless Chromium; the canvas is capped at ~2.3 MP. `prefers-reduced-motion` turns off shake, flash, particles and most motion.
+- **Mobile audio** — expo-audio's sample stream (Android `Visualizer` API: 1024 8-bit samples ~10×/s), turned into a spectrum by an FFT in JS (`byteSpectrum`). Because only ~10 short snapshots per second arrive, beats are caught less reliably than on desktop; levels, bass and waveform ease between snapshots. Android requires the **microphone permission** for this API (nothing is recorded); the visualizer asks for it with an explanation, and without it the styles just idle. Cover colours: the cover is fetched at 32 px (Navidrome serves it as JPEG) and decoded with `jpeg-js`.
 
 ## Radio
 
