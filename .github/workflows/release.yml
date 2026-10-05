@@ -57,7 +57,9 @@ jobs:
           mkdir -p out
           cp apps/desktop/src-tauri/target/release/bundle/nsis/*.exe out/Sonora-Setup-Windows.exe
           cp apps/desktop/src-tauri/target/release/bundle/msi/*.msi out/Sonora-Windows.msi
-          sig=$(ls apps/desktop/src-tauri/target/release/bundle/nsis/*.exe.sig 2>/dev/null | head -1)
+          # (no `ls`: with bash -eo pipefail a missing file would fail the step)
+          sig=""
+          for f in apps/desktop/src-tauri/target/release/bundle/nsis/*.exe.sig; do [ -f "$f" ] && sig="$f"; done
           if [ -n "$sig" ]; then
             # latest.json tells installed apps about this version (Tauri updater format).
             SIG_FILE="$sig" node -e "
