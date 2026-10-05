@@ -30,7 +30,7 @@
         "font-src": "'self' data:",
         "img-src": "'self' data: blob: http: https:",
         "media-src": "'self' blob: http: https:",
-        "connect-src": "'self' ipc: http://ipc.localhost http: https:"
+        "connect-src": "'self' ipc: http://ipc.localhost http: https: blob: data:"
       }
     }
   },
