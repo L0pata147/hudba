@@ -9,6 +9,7 @@ import { LoginPage } from './pages/Login';
 import { HomePage } from './pages/Home';
 import { applyTheme } from './lib/theme';
 import { loadAppVersion, useUpdater } from './lib/updater';
+import { UpdateBanner } from './components/layout/UpdateBanner';
 import { TrackRowSkeleton } from './components/ui/Skeleton';
 
 // Secondary routes are code-split to keep start-up fast.
@@ -94,7 +95,16 @@ export function App() {
 
   return (
     <>
-      {session ? <RouterProvider router={router} /> : <LoginPage />}
+      {session ? (
+        <RouterProvider router={router} />
+      ) : (
+        <>
+          <div className="fixed inset-x-2 top-2 z-50">
+            <UpdateBanner />
+          </div>
+          <LoginPage />
+        </>
+      )}
       <MenuHost />
       <Toaster />
     </>
