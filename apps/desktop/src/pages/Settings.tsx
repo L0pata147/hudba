@@ -8,6 +8,9 @@ import { accents } from '@sonora/ui';
 import { historyStore, preferencesStore, resetForLogout, useDownloads, usePreferences, useSession } from '@sonora/core';
 import { formatBytes, pluralize } from '@sonora/utils';
 import { Button } from '../components/ui/Button';
+import { SkinPicker } from '../components/settings/SkinPicker';
+import { useClassicMode } from '../lib/classic-skins';
+import { useUpdater } from '../lib/updater';
 import { Select, Switch } from '../components/ui/Controls';
 import { Slider } from '../components/ui/Slider';
 import { idb } from '../lib/idb';
@@ -59,6 +62,7 @@ export function SettingsPage() {
   const records = useDownloads((s) => s.records);
   const downloads = useMemo(() => Object.values(records).filter((r) => r.status === 'done'), [records]);
   const [cacheSize, setCacheSize] = useState<number | null>(null);
+  const updater = useUpdater();
 
   useEffect(() => {
     void idb.size(QUERY_CACHE_KEY).then(setCacheSize);
@@ -128,6 +132,12 @@ export function SettingsPage() {
       </Section>
 
       <Section title="Appearance">
+        <div className="py-3">
+          <p className="text-[15px] font-medium">Skin</p>
+          <p className="mt-0.5 text-[13px] text-fg-2">A complete look for the whole app. Skins set their own colours, so theme and accent apply to the Sonora skin only.</p>
+          <SkinPicker />
+        </div>
+        <div className={clsx(prefs.skin !== 'sonora' && 'pointer-events-none opacity-45')} aria-disabled={prefs.skin !== 'sonora' || undefined}>
         <Select<ThemeMode>
           label="Theme"
           value={prefs.theme}
@@ -156,6 +166,12 @@ export function SettingsPage() {
               </button>
             ))}
           </div>
+        </Row>
+        </div>
+        <Row label="Classic mode" description="Play your queue in a faithful Winamp 2.x with its equalizer, playlist and real .wsz skins (the ⚡ button in the player bar).">
+          <Button size="sm" variant="outline" onClick={() => useClassicMode.getState().setOpen(true)}>
+            Open
+          </Button>
         </Row>
         <Switch label="Compact mode" description="Denser lists and slightly smaller text." checked={prefs.compactMode} onChange={(v) => set('compactMode', v)} />
       </Section>
@@ -202,8 +218,37 @@ export function SettingsPage() {
 
       <Section title="About">
         <Row label="Sonora" description={isTauri ? 'Desktop app' : 'Web app'}>
-          <span className="text-[14px] text-fg-2">v{pkg.version}</span>
+          <span className="text-[14px] text-fg-2">v{updater.current}</span>
         </Row>
+        {isTauri && (
+          <>
+            <Row
+              label="Updates"
+              description={
+                updater.status === 'checking'
+                  ? 'Checking GitHub…'
+                  : updater.status === 'none'
+                    ? 'You have the latest version.'
+                    : updater.status === 'available' || updater.status === 'downloading' || updater.status === 'installing'
+                      ? `Version ${updater.version} is available.`
+                      : updater.status === 'error'
+                        ? `Could not check: ${updater.error}`
+                        : 'New versions come from the "Latest build" release on GitHub.'
+              }
+            >
+              {updater.status === 'available' ? (
+                <Button size="sm" onClick={() => void updater.install()}>
+                  Update & restart
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" disabled={updater.status === 'checking' || updater.status === 'downloading'} onClick={() => void updater.check()}>
+                  Check now
+                </Button>
+              )}
+            </Row>
+            <Switch label="Check for updates at start-up" checked={prefs.autoUpdate} onChange={(v) => set('autoUpdate', v)} />
+          </>
+        )}
         <Row
           label="Navidrome compatibility"
           description={

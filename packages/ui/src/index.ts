@@ -268,3 +268,4 @@ export function paletteFromPixels(data: Uint8ClampedArray | Uint8Array): [RGB, R
   const h2 = second >= 0 ? hue(second) : h1 + 45;
   return [hslToRgb(h1, 0.95, 0.6), hslToRgb(h2, 0.95, 0.62)];
 }
+export * from './skins';

@@ -336,6 +336,10 @@ export interface Preferences {
   /** Show the spectrum visualizer instead of the cover in the full-screen player. */
   visualizer: boolean;
   visualizerStyle: VisualizerStyle;
+  /** App skin id (see `SKINS` in @sonora/ui); 'sonora' = normal theme + accent. */
+  skin: string;
+  /** Desktop: check GitHub for a new version at start-up. */
+  autoUpdate: boolean;
 }
 
 /* ------------------------------------------------------------------ */

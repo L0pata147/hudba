@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import clsx from 'clsx';
+import { useClassicMode } from '../../lib/classic-skins';
+import { UpdateBanner } from './UpdateBanner';
 import { useCurrentItem, useSession } from '@sonora/core';
 import { ScrollContext } from '../../lib/scroll';
 import { useUi } from '../../lib/ui-store';
@@ -32,6 +34,8 @@ function InsecureBanner() {
   );
 }
 
+const ClassicMode = lazy(() => import('../classic/ClassicMode'));
+
 export function AppShell() {
   const scrollRef = useRef<HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
@@ -39,6 +43,7 @@ export function AppShell() {
   const isMobile = useIsMobile();
   const hasItem = Boolean(useCurrentItem());
   const queueOpen = useUi((s) => s.queueOpen);
+  const classicOpen = useClassicMode((s) => s.open);
   const setQueueOpen = useUi((s) => s.setQueueOpen);
   useKeyboardShortcuts();
 
@@ -75,7 +80,7 @@ export function AppShell() {
         Skip to content
       </a>
       {isMobile ? (
-        <div className="flex h-[100dvh] flex-col bg-bg">
+        <div className="skin-bg flex h-[100dvh] flex-col">
           <InsecureBanner />
           {main}
           <div className="relative z-40 shrink-0">
@@ -87,8 +92,9 @@ export function AppShell() {
           </Sheet>
         </div>
       ) : (
-        <div className="flex h-screen flex-col gap-2 bg-bg p-2 pb-0">
+        <div className="skin-bg flex h-screen flex-col gap-2 p-2 pb-0">
           <InsecureBanner />
+          <UpdateBanner />
           <div className="flex min-h-0 flex-1 gap-2">
             <Sidebar />
             {main}
@@ -102,6 +108,11 @@ export function AppShell() {
         </div>
       )}
       <NowPlaying />
+      {classicOpen && (
+        <Suspense fallback={null}>
+          <ClassicMode />
+        </Suspense>
+      )}
       <Dialogs />
     </ScrollContext.Provider>
   );

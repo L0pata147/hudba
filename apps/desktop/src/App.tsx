@@ -8,6 +8,7 @@ import { Toaster } from './components/ui/Toaster';
 import { LoginPage } from './pages/Login';
 import { HomePage } from './pages/Home';
 import { applyTheme } from './lib/theme';
+import { loadAppVersion, useUpdater } from './lib/updater';
 import { TrackRowSkeleton } from './components/ui/Skeleton';
 
 // Secondary routes are code-split to keep start-up fast.
@@ -53,20 +54,33 @@ function useThemeSync() {
   const theme = usePreferences((s) => s.theme);
   const accent = usePreferences((s) => s.accent);
   const compact = usePreferences((s) => s.compactMode);
+  const skin = usePreferences((s) => s.skin);
   useEffect(() => {
-    applyTheme(theme, accent, compact);
+    applyTheme(theme, accent, compact, skin);
     if (theme !== 'system') return;
     const mql = window.matchMedia('(prefers-color-scheme: light)');
-    const onChange = () => applyTheme(theme, accent, compact);
+    const onChange = () => applyTheme(theme, accent, compact, skin);
     mql.addEventListener('change', onChange);
     return () => mql.removeEventListener('change', onChange);
-  }, [theme, accent, compact]);
+  }, [theme, accent, compact, skin]);
+}
+
+/** Desktop: look for a new version a little after start-up (if enabled). */
+function useAutoUpdateCheck() {
+  const enabled = usePreferences((s) => s.autoUpdate);
+  useEffect(() => {
+    void loadAppVersion();
+    if (!enabled) return;
+    const t = setTimeout(() => void useUpdater.getState().check({ quiet: true }), 6000);
+    return () => clearTimeout(t);
+  }, [enabled]);
 }
 
 export function App() {
   const session = useSession((s) => s.session);
   const qc = useQueryClient();
   useThemeSync();
+  useAutoUpdateCheck();
 
   // Leaving an account must not leak its cached data into the next one.
   useEffect(() => {

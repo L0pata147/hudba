@@ -40,9 +40,37 @@
     "category": "Music",
     "shortDescription": "Music player for Navidrome",
     "longDescription": "Sonora is a modern, artwork-first music player for your self-hosted Navidrome server.",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
-    "linux": { "deb": { "depends": [] } },
-    "macOS": { "minimumSystemVersion": "10.15" },
-    "windows": { "webviewInstallMode": { "type": "downloadBootstrapper" } }
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM0NzEyQTRCOTJFRjVDNTAKUldSUVhPK1NTeXB4TkNrZTFRZUtFaUxUQ0xXMmhxU1FlSlJWdmNCQk81NncyUklvd0o3dTMwWHUK",
+      "endpoints": [
+        "https://github.com/L0pata147/hudba/releases/download/latest-build/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

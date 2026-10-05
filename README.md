@@ -250,6 +250,36 @@ Desktop path styles are drawn into an offscreen layer that keeps motion trails, 
 - **Desktop audio** — a Web Audio `AnalyserNode` tapping the music **before** volume/EQ, so it looks the same at any volume. Like the EQ it needs CORS on the stream (Navidrome sends it) and shows a note if the server blocks it. All styles run at ~60 fps in headless Chromium; the canvas is capped at ~2.3 MP. `prefers-reduced-motion` turns off shake, flash, particles and most motion.
 - **Mobile audio** — expo-audio's sample stream (Android `Visualizer` API: 1024 8-bit samples ~10×/s), turned into a spectrum by an FFT in JS (`byteSpectrum`). Because only ~10 short snapshots per second arrive, beats are caught less reliably than on desktop; levels, bass and waveform ease between snapshots. Android requires the **microphone permission** for this API (nothing is recorded); the visualizer asks for it with an explanation, and without it the styles just idle. Cover colours: the cover is fetched at 32 px (Navidrome serves it as JPEG) and decoded with `jpeg-js`.
 
+## Skins
+
+Settings → Appearance → **Skin** restyles the whole app (desktop and mobile): colours, accent, fonts, corner radius, background and a pattern. Skins are defined once in `packages/ui/src/skins.ts`; the desktop app applies them as CSS variables (`src/lib/theme.ts`), the mobile app through `useTheme()`.
+
+| Skin | Look |
+| --- | --- |
+| Sonora | the default — your theme and accent colour |
+| Classic Amp | charcoal bevels, green LCD, pixel headings |
+| Space Cowboy | midnight blue, cream and mustard, serif headings, a starry background |
+| Unit-01 | purple, acid green and warning orange, condensed upper-case headings, a grid |
+| Luna | light, bright blue bar and green "start" accent, rounded plastic |
+| Vaporwave | hot pink and cyan over a purple grid |
+| Terminal | green phosphor, monospace everywhere, scanlines |
+
+Fonts: Silkscreen and VT323 (both OFL) are bundled on desktop; on mobile each skin maps to fonts the phone has.
+
+## Classic mode (desktop)
+
+The ⚡ button in the player bar (or Settings → Appearance → Classic mode) opens the queue in a faithful **Winamp 2.x** — [Webamp](https://github.com/captbaritone/webamp) (MIT) — with its main window, 10-band equalizer and playlist. The current queue, track and position are handed over (Sonora pauses) and handed back when you leave (`Esc` or *Back to Sonora*).
+
+- Load real Winamp skins (`.wsz`) with *Load .wsz…* or by dropping them on the window; *Get skins* opens the [Winamp Skin Museum](https://skins.webamp.org/). Loaded skins are kept in IndexedDB and the last one is used next time.
+- Webamp is loaded only when classic mode opens (a separate ~300 kB gzip chunk). It plays the Navidrome stream URLs itself, so like the EQ it needs CORS on the stream.
+
+## Updates (desktop)
+
+The Windows app updates itself from the **Latest build** release (Tauri updater). Every release build gets the version `0.2.<build number>`; when the repository secret `TAURI_SIGNING_PRIVATE_KEY` is set, the build signs the installer and publishes `latest.json` next to it. The app checks a few seconds after start-up (Settings → About → *Check for updates at start-up*) and shows an *Update & restart* bar; *Check now* checks on demand.
+
+- The public key is in `apps/desktop/src-tauri/tauri.conf.json` (`plugins.updater.pubkey`); the private key must never be committed. Without the secret the build still works, just without update files.
+- Updates start working from the first build that contains the updater (install that one by hand once).
+
 ## Radio
 
 Navidrome has no "radio" or "instant mix" endpoint. What it does offer, and what Sonora uses:

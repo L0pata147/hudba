@@ -20,6 +20,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   equalizer: DEFAULT_EQUALIZER,
   visualizer: false,
   visualizerStyle: 'ring',
+  skin: 'sonora',
+  autoUpdate: true,
 };
 
 export interface PreferencesState extends Preferences {

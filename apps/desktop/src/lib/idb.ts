@@ -32,4 +32,7 @@ export const idb = {
   set: (key: string, value: string) => tx('readwrite', (s) => s.put(value, key)).then(() => undefined).catch(() => undefined),
   del: (key: string) => tx('readwrite', (s) => s.delete(key)).then(() => undefined).catch(() => undefined),
   size: async (key: string) => ((await idb.get(key)) ?? '').length,
+  /** Any structured-cloneable value (e.g. Blobs). */
+  getValue: <T>(key: string) => tx<T | undefined>('readonly', (s) => s.get(key) as IDBRequest<T | undefined>).catch(() => undefined),
+  setValue: (key: string, value: unknown) => tx('readwrite', (s) => s.put(value, key)).then(() => undefined).catch(() => undefined),
 };

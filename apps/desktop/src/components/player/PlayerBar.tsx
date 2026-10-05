@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import clsx from 'clsx';
-import { ChevronUp, ListMusic, Maximize2, MicVocal, Radio, SlidersVertical } from 'lucide-react';
+import { ChevronUp, ListMusic, Maximize2, MicVocal, Radio, SlidersVertical, Zap } from 'lucide-react';
+import { useClassicMode } from '../../lib/classic-skins';
 import { useCurrentItem, usePlayer, usePreferences } from '@sonora/core';
 import { Artwork } from '../ui/Artwork';
 import { IconButton } from '../ui/Button';
@@ -76,6 +77,9 @@ export function PlayerBar() {
           <ListMusic className="size-[18px]" />
         </IconButton>
         <VolumeControl className={clsx('max-lg:[&>[role=slider]]:w-16')} />
+        <IconButton label="Classic mode (Winamp)" size="sm" onClick={() => useClassicMode.getState().setOpen(true)}>
+          <Zap className="size-4" />
+        </IconButton>
         <IconButton label="Full screen player" size="sm" disabled={!song} onClick={() => setNowPlayingOpen(true)}>
           <Maximize2 className="size-4" />
         </IconButton>

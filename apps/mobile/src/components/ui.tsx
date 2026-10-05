@@ -18,7 +18,10 @@ export function T({ variant = 'body', dim, style, ...rest }: TextProps & { varia
     label: { fontSize: 12, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase' },
   }[variant] as object;
   const color = dim === 1 ? t.textSecondary : dim === 2 ? t.textMuted : t.textPrimary;
-  return <Text {...rest} style={[{ color }, v, style]} />;
+  const heading = variant === 'display' || variant === 'h1' || variant === 'h2';
+  const family = heading ? t.displayFont : t.font;
+  const skinStyle = [family ? { fontFamily: family } : null, heading && t.uppercase ? { textTransform: 'uppercase' as const, letterSpacing: 0.6 } : null];
+  return <Text {...rest} style={[{ color }, v, ...skinStyle, style]} />;
 }
 
 /** Pressable with a subtle press-scale micro animation. */

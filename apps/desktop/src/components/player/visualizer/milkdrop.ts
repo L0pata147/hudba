@@ -345,7 +345,7 @@ export function createMilkdropRenderer(canvas: HTMLCanvasElement): Renderer | nu
       gl.disable(gl.BLEND);
 
       // A cheap brightness probe for tests/diagnostics, once a second.
-      if (++frames % 60 === 0) {
+      if (++frames % 60 === 10) {
         const px = new Uint8Array(w * h * 4);
         gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
         let sum = 0;

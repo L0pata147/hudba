@@ -3,7 +3,8 @@ import { Pressable, ScrollView, Switch, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AccentColor, Preferences, StreamQuality, ThemeMode } from '@sonora/types';
-import { accents } from '@sonora/ui';
+import { SKINS, accents } from '@sonora/ui';
+import { LinearGradient } from 'expo-linear-gradient';
 import { downloadsStore, preferencesStore, resetForLogout, toast, useDownloads, usePreferences, useSession } from '@sonora/core';
 import { formatBytes, pluralize } from '@sonora/utils';
 import { BackButton, TopInset } from '../src/components/Screen';
@@ -84,11 +85,39 @@ export default function Settings() {
           <Row label="Sync queue with server">{sw(prefs.syncQueue, 'syncQueue')}</Row>
         </Section>
         <Section title="Appearance">
+          <T dim={1} style={{ fontSize: 13 }}>Skin — a complete look for the whole app. Theme and accent apply to the Sonora skin only.</T>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }} accessibilityRole="radiogroup" accessibilityLabel="Skin">
+            {SKINS.map((skin) => {
+              const on = (prefs.skin ?? 'sonora') === skin.id;
+              return (
+                <Pressable
+                  key={skin.id}
+                  onPress={() => set('skin', skin.id)}
+                  accessibilityRole="radio"
+                  accessibilityLabel={skin.name}
+                  accessibilityState={{ checked: on }}
+                  style={{ width: 116, borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: on ? t.accent : 'transparent', backgroundColor: t.surfaceHover }}
+                >
+                  <LinearGradient colors={skin.background as [string, string]} style={{ height: 64, padding: 8, gap: 6 }}>
+                    <View style={{ height: 8, width: 52, borderRadius: 3 * skin.radius, backgroundColor: skin.colors.textPrimary, opacity: 0.85 }} />
+                    <View style={{ flexDirection: 'row', gap: 5 }}>
+                      <View style={{ width: 22, height: 22, borderRadius: 5 * skin.radius, backgroundColor: skin.colors.surfaceHover }} />
+                      <View style={{ width: 22, height: 22, borderRadius: 5 * skin.radius, backgroundColor: skin.accent.soft }} />
+                      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: skin.accent.base }} />
+                    </View>
+                  </LinearGradient>
+                  <T numberOfLines={1} style={{ fontSize: 13, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 6 }}>{skin.name}</T>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <View style={{ gap: 12, opacity: (prefs.skin ?? 'sonora') === 'sonora' ? 1 : 0.4 }} pointerEvents={(prefs.skin ?? 'sonora') === 'sonora' ? 'auto' : 'none'}>
           <Choice<ThemeMode> value={prefs.theme} onChange={(v) => set('theme', v)} options={[{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }, { value: 'system', label: 'System' }]} />
           <View style={{ flexDirection: 'row', gap: 12 }} accessibilityRole="radiogroup" accessibilityLabel="Accent color">
             {(Object.keys(accents) as AccentColor[]).map((a) => (
               <Pressable key={a} onPress={() => set('accent', a)} accessibilityRole="radio" accessibilityLabel={accents[a].name} accessibilityState={{ checked: prefs.accent === a }} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: accents[a].base, borderWidth: prefs.accent === a ? 3 : 0, borderColor: t.textPrimary }} />
             ))}
+          </View>
           </View>
           <Row label="Compact mode">{sw(prefs.compactMode, 'compactMode')}</Row>
         </Section>

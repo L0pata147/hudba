@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/inter';
 @import '@fontsource-variable/plus-jakarta-sans';
+@import '@fontsource/silkscreen/400.css';
+@import '@fontsource/vt323/400.css';
 
 /*
  * Sonora design system — CSS layer.
@@ -30,6 +32,10 @@
   --shadow-card: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
   --shadow-pop: 0 18px 50px -12px rgba(0, 0, 0, 0.75);
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Overridden by skins (src/lib/theme.ts). */
+  --app-font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --app-font-display: 'Plus Jakarta Sans Variable', 'Inter Variable', system-ui, sans-serif;
+  --radius-scale: 1;
 }
 
 :root[data-theme='light'] {
@@ -66,13 +72,13 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-overlay: var(--overlay);
-  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Plus Jakarta Sans Variable', 'Inter Variable', system-ui, sans-serif;
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --font-sans: var(--app-font-sans);
+  --font-display: var(--app-font-display);
+  --radius-xs: calc(4px * var(--radius-scale));
+  --radius-sm: calc(6px * var(--radius-scale));
+  --radius-md: calc(10px * var(--radius-scale));
+  --radius-lg: calc(14px * var(--radius-scale));
+  --radius-xl: calc(20px * var(--radius-scale));
   --shadow-card: var(--shadow-card);
   --shadow-pop: var(--shadow-pop);
   --ease-soft: var(--ease-out-soft);
@@ -217,4 +223,51 @@
 }
 .karaoke-word[data-sung] {
   filter: drop-shadow(0 0 14px var(--glow, rgba(255, 255, 255, 0.6)));
+}
+
+/* ---------- Skins (see packages/ui/src/skins.ts) ---------- */
+.skin-bg {
+  background: var(--skin-background, var(--bg));
+  isolation: isolate;
+}
+.skin-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+:root[data-pattern='grid'] .skin-bg::before {
+  background:
+    linear-gradient(color-mix(in srgb, var(--accent) 14%, transparent) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 14%, transparent) 1px, transparent 1px) 0 0 / 44px 44px;
+  mask-image: linear-gradient(180deg, transparent 15%, #000 85%);
+}
+:root[data-pattern='stars'] .skin-bg::before {
+  background:
+    radial-gradient(1.2px 1.2px at 12% 18%, #fff8 50%, transparent 51%) 0 0 / 230px 190px,
+    radial-gradient(1px 1px at 63% 42%, #fff6 50%, transparent 51%) 0 0 / 170px 210px,
+    radial-gradient(1.6px 1.6px at 37% 77%, color-mix(in srgb, var(--accent) 70%, transparent) 50%, transparent 51%) 0 0 / 310px 260px;
+}
+:root[data-pattern='scanlines'] .skin-bg::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22) 0 1px, transparent 1px 3px);
+  mix-blend-mode: multiply;
+}
+:root[data-pattern='scanlines'] body {
+  text-shadow: 0 0 6px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+/* Classic Amp: raised grey bevels on every panel and button. */
+:root[data-pattern='bevel'] :is(.bg-surface, .bg-bg-elevated, .bg-surface-hover, .bg-surface-active) {
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.13),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.6);
+}
+:root[data-uppercase] :is(h1, h2, h3, .font-display) {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }

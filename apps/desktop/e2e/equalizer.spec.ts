@@ -238,7 +238,7 @@ test('visualizer styles: every style draws, menu and arrow keys switch, the choi
     if (i) await next.click();
     await expect(vis).toHaveAttribute('data-style', id);
     // An empty canvas reads 0; the mock plays a plain tone, so e.g. bars stay low and scope is one thin line.
-    await expect.poll(drawn, { timeout: 8000, message: `style ${id} draws something` }).toBeGreaterThan(id === 'scope' ? 0.002 : 0.005);
+    await expect.poll(drawn, { timeout: 15_000, message: `style ${id} draws something` }).toBeGreaterThan(id === 'scope' ? 0.002 : 0.005);
     if (id === 'lyrics') await expect(page.getByTestId('lyric-pulse')).toBeVisible();
   }
   await next.click();

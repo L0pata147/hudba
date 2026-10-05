@@ -176,7 +176,7 @@ export function createLiquidGlRenderer(canvas: HTMLCanvasElement, getUrl: () => 
       gl.enableVertexAttribArray(0);
       gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      if (++frames % 60 === 0) {
+      if (++frames % 60 === 10) {
         const px = new Uint8Array(32 * 32 * 4);
         gl.readPixels((W >> 1) - 16, (H >> 1) - 16, 32, 32, gl.RGBA, gl.UNSIGNED_BYTE, px);
         let sum = 0;
