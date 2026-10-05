@@ -56,6 +56,13 @@ test('classic mode takes over the queue in Winamp and hands it back', async ({ p
   await expect(player).toHaveAttribute('data-status', 'paused');
   await expect(page.locator('#webamp #playlist-window')).toContainText(/1\.\s/);
 
+  // A picture behind the windows, kept with its animation choice.
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await page.getByLabel('Background picture file').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: png });
+  await expect(page.getByTestId('classic-backdrop')).toBeVisible();
+  await expect(page.getByLabel('Background picture', { exact: true })).not.toHaveValue('');
+  await page.getByLabel('Picture animation').selectOption('pulse');
+
   await page.getByRole('button', { name: 'Back to Sonora' }).click();
   await expect(page.getByTestId('classic-mode')).toHaveCount(0);
   await expect(page.locator('#webamp')).toHaveCount(0);

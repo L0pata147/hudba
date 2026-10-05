@@ -14,6 +14,7 @@ import {
   type SavedSkin,
 } from '../../lib/classic-skins';
 import { openExternal } from '../../lib/open-external';
+import { ClassicBackdrop } from './ClassicBackdrop';
 
 const MUSEUM = 'https://skins.webamp.org/';
 
@@ -58,6 +59,8 @@ export default function ClassicMode() {
   const [current, setCurrent] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [bgControls, setBgControls] = useState<HTMLDivElement | null>(null);
+  const getAnalyser = useCallback(() => webampRef.current?.media.getAnalyser() ?? null, []);
 
   const blobUrl = (b: Blob) => {
     const u = URL.createObjectURL(b);
@@ -194,6 +197,7 @@ export default function ClassicMode() {
         <span className="font-display font-bold tracking-wide">Classic mode</span>
         <span className="text-white/50">Winamp 2.x · drag windows by their title bars · Ctrl+D double size</span>
         <div className="flex-1" />
+        <div ref={setBgControls} className="flex items-center gap-2" />
         <label className="flex items-center gap-2">
           <span className="text-white/70">Skin</span>
           <select
@@ -249,6 +253,7 @@ export default function ClassicMode() {
           }}
         />
       </div>
+      <ClassicBackdrop getAnalyser={getAnalyser} controls={bgControls} />
       <div ref={hostRef} className="relative flex-1" />
       {dragging && (
         <div className="pointer-events-none absolute inset-4 z-[140] flex items-center justify-center rounded-2xl border-4 border-dashed border-white/60 bg-black/40 text-xl font-bold text-white">

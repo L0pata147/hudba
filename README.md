@@ -271,6 +271,7 @@ Fonts: Silkscreen and VT323 (both OFL) are bundled on desktop; on mobile each sk
 The ⚡ button in the player bar (or Settings → Appearance → Classic mode) opens the queue in a faithful **Winamp 2.x** — [Webamp](https://github.com/captbaritone/webamp) (MIT) — with its main window, 10-band equalizer and playlist. The current queue, track and position are handed over (Sonora pauses) and handed back when you leave (`Esc` or *Back to Sonora*).
 
 - Load real Winamp skins (`.wsz`) with *Load .wsz…* or by dropping them on the window; *Get skins* opens the [Winamp Skin Museum](https://skins.webamp.org/). Loaded skins are kept in IndexedDB and the last one is used next time.
+- *Picture…* puts your own picture (PNG with transparency works best) behind the Winamp windows and animates it to the music Webamp plays: *Groove* (sways and bounces on the beat), *Pulse*, *Float* or *Still*, with a glow and a shine on beats. Pictures are kept in IndexedDB too.
 - Webamp is loaded only when classic mode opens (a separate ~300 kB gzip chunk). It plays the Navidrome stream URLs itself, so like the EQ it needs CORS on the stream.
 
 ## Updates (desktop)

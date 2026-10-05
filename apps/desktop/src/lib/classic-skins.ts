@@ -43,3 +43,43 @@ export const useClassicMode = create<{ open: boolean; setOpen(open: boolean): vo
   open: false,
   setOpen: (open) => set({ open }),
 }));
+
+/* ---------- pictures behind the Winamp windows ---------- */
+
+export type BackdropAnimation = 'groove' | 'pulse' | 'float' | 'none';
+
+export interface SavedPicture {
+  id: string;
+  name: string;
+  blob: Blob;
+}
+
+const PICTURES_KEY = 'classic.pictures';
+const BACKDROP_KEY = 'classic.backdrop';
+
+export async function loadPictures(): Promise<SavedPicture[]> {
+  return (await idb.getValue<SavedPicture[]>(PICTURES_KEY)) ?? [];
+}
+
+export async function savePicture(file: File | Blob, name: string): Promise<SavedPicture> {
+  const pic: SavedPicture = { id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`, name, blob: file };
+  await idb.setValue(PICTURES_KEY, [...(await loadPictures()), pic]);
+  return pic;
+}
+
+export async function removePicture(id: string): Promise<void> {
+  await idb.setValue(PICTURES_KEY, (await loadPictures()).filter((p) => p.id !== id));
+}
+
+export interface BackdropSettings {
+  pictureId: string | null;
+  animation: BackdropAnimation;
+}
+
+export async function loadBackdrop(): Promise<BackdropSettings> {
+  return (await idb.getValue<BackdropSettings>(BACKDROP_KEY)) ?? { pictureId: null, animation: 'groove' };
+}
+
+export async function saveBackdrop(s: BackdropSettings): Promise<void> {
+  await idb.setValue(BACKDROP_KEY, s);
+}
