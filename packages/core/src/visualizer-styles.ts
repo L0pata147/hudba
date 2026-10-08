@@ -31,7 +31,7 @@ export const VISUALIZER_STYLES: VisualizerStyleInfo[] = [
   { ...base, id: 'tunnel', name: 'Warp tunnel', cover: 'small', glow: true, flash: true, shake: true, backdrop: false },
   { ...base, id: 'galaxy', name: 'Galaxy', glow: true, flash: true, backdrop: false },
   { ...base, id: 'milkdrop', name: 'Milkdrop', desktopOnly: true, backdrop: false },
-  { ...base, id: 'liquid', name: 'Liquid cover', glow: true, shake: true },
+  { ...base, id: 'liquid', name: 'Liquid cover', shake: true, backdrop: false },
   { ...base, id: 'lyrics', name: 'Lyric pulse', backdrop: false },
   { ...base, id: 'ambient', name: 'Ambient', backdrop: false },
 ];

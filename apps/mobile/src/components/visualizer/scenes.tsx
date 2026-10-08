@@ -1,9 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, useAnimatedProps, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
-import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, Image as SvgImage, LinearGradient, Path, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { Image } from 'expo-image';
-import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import type { Song } from '@sonora/types';
 import {
   BG_COLOR,
@@ -20,7 +19,7 @@ import {
   type SceneSlot,
 } from '@sonora/core';
 import { rgbToCss, type RGB } from '@sonora/ui';
-import { useCoverMosaic } from '../../visualizer/palette';
+import { dropPath, dropRadius, droplet } from '../../visualizer/drop';
 
 /** What the UI-thread frame callback publishes every frame. */
 export interface VisOut {
@@ -122,79 +121,96 @@ export function SlotLayer({
 }
 
 /* ------------------------------------------------------------------ */
-/* Liquid cover: rippling strips + pixel mosaic on beats               */
+/* Liquid: a ferrofluid drop holding the cover                          */
 /* ------------------------------------------------------------------ */
 
-const STRIPS = 28;
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-function Strip({ k, uri, S, pad, out, reduced }: { k: number; uri: string; S: number; pad: number; out: SharedValue<VisOut>; reduced: boolean }) {
-  const sh = S / STRIPS;
-  const style = useAnimatedStyle(() => {
+function Droplet({ i, out, cx, cy, unit, reduced }: { i: number; out: SharedValue<VisOut>; cx: number; cy: number; unit: number; reduced: boolean }) {
+  const props = useAnimatedProps(() => {
     const o = out.value;
-    const yn = k / STRIPS;
-    const motion = reduced ? 0.2 : 1;
-    const amp = S * 0.02 * (0.3 + o.bass * 1.6) * motion;
-    const high = sampleLevel(o.levels, 0.75);
-    const dx = (Math.sin(yn * 6 + o.t * 2.2) * amp + Math.sin(yn * 17 - o.t * 3.1) * S * 0.006 * high * (1 + o.kick)) * motion;
-    return { transform: [{ translateX: dx }] };
+    const d = droplet(i, o.levels, reduced ? i * 3 : o.t, o.bass, o.kick, cx, cy, unit);
+    return { cx: d.x, cy: d.y, r: d.r };
   });
-  return (
-    <Animated.View style={[{ position: 'absolute', top: k * sh, left: -pad, width: S + 2 * pad, height: sh + 1, overflow: 'hidden' }, style]}>
-      <Image source={{ uri }} style={{ position: 'absolute', top: -k * sh, left: 0, width: S + 2 * pad, height: S }} contentFit="fill" cachePolicy="memory-disk" />
-    </Animated.View>
-  );
+  return <AnimatedCircle animatedProps={props} fill="url(#liqDrop)" />;
 }
 
-export function LiquidCover({ song, out, w, h, reduced }: { song: Song; out: SharedValue<VisOut>; w: number; h: number; reduced: boolean }) {
-  const S = Math.min(w, h) * 0.62;
-  const pad = S * 0.06;
+/**
+ * Liquid: the cover inside a ferrofluid drop whose spikes stand up with the
+ * music, with a shaded rim, a highlight and droplets drifting around it, over
+ * the cover flowing in the background (same look as the desktop shader).
+ */
+export function LiquidCover({ song, out, c1, c2, w, h, reduced }: { song: Song; out: SharedValue<VisOut>; c1: RGB; c2: RGB; w: number; h: number; reduced: boolean }) {
+  const unit = Math.min(w, h);
+  const cx = w / 2;
+  const cy = h / 2;
+  const R = dropRadius(0, 0) * unit;
+  // big enough to fill the spikes too
+  const C = R * 2.8;
   const uri = tryGetNavidrome()?.media.coverArtUrl(song.coverArtId, 600);
-  const mosaic = useCoverMosaic(song.coverArtId);
-  const box = useAnimatedStyle(() => {
+  const drop = useAnimatedProps(() => {
     const o = out.value;
-    const s = reduced ? 1 : 1 + o.bass * 0.05 + o.kick * 0.06;
-    return { transform: [{ translateX: o.shakeX }, { translateY: o.shakeY }, { scale: s }] };
+    return { d: dropPath(o.levels, reduced ? 0 : o.t, reduced ? 0 : o.bass, reduced ? 0 : o.kick, cx, cy, unit) };
   });
-  const pixels = useAnimatedStyle(() => ({ opacity: !reduced && out.value.kick > 0.15 ? Math.min(1, out.value.kick * 1.1) : 0 }));
-  // A slow diagonal sheen and a ring rippling out from the centre on beats.
-  const sheen = useAnimatedStyle(() => {
-    const t = reduced ? 0 : out.value.t;
-    const p = ((t * 0.12) % 1) * 3 - 1.5;
-    return { transform: [{ translateX: p * S }, { translateY: p * S }, { rotate: '-45deg' }] };
+  const glow = useAnimatedProps(() => {
+    const o = out.value;
+    return {
+      d: dropPath(o.levels, reduced ? 0 : o.t, reduced ? 0 : o.bass, reduced ? 0 : o.kick, cx, cy, unit),
+      strokeOpacity: 0.12 + (reduced ? 0 : o.bass * 0.2 + o.kick * 0.15),
+    };
   });
-  const ripple = useAnimatedStyle(() => {
+  const ripple = useAnimatedProps(() => {
     const k = reduced ? 0 : out.value.kick;
-    return { opacity: k * 0.8, transform: [{ scale: 0.15 + (1 - k) * 1.3 }] };
+    return { r: R * (1.05 + (1 - k) * 1.4), strokeOpacity: k * 0.6 };
   });
-  const cell = S / 16;
+  const shake = useAnimatedStyle(() => ({ transform: [{ translateX: out.value.shakeX }, { translateY: out.value.shakeY }] }));
+  const light = rgbToCss(lighten(c2, 90));
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={[{ position: 'absolute', left: (w - S) / 2, top: (h - S) / 2, width: S, height: S, borderRadius: S * 0.04, overflow: 'hidden' }, box]}
-    >
-      {uri ? Array.from({ length: STRIPS }, (_, k) => <Strip key={k} k={k} uri={uri} S={S} pad={pad} out={out} reduced={reduced} />) : null}
-      <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: -S * 0.5, top: S * 0.5 - S * 0.09, width: S * 2, height: S * 0.18 }, sheen]}>
-        <ExpoLinearGradient
-          colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.28)', 'rgba(255,255,255,0)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
+    <>
+      <AmbientBlobs song={song} out={out} c1={c1} c2={c2} w={w} h={h} dim={0.5} reduced={reduced} />
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, shake]}>
+        <Svg width={w} height={h}>
+          <Defs>
+            {uri ? (
+              <Pattern id="liqCover" patternUnits="userSpaceOnUse" x={cx - C / 2} y={cy - C / 2} width={C} height={C}>
+                <SvgImage href={{ uri }} width={C} height={C} preserveAspectRatio="xMidYMid slice" />
+              </Pattern>
+            ) : null}
+            <RadialGradient id="liqShade" gradientUnits="userSpaceOnUse" cx={cx} cy={cy} r={R * 1.8}>
+              <Stop offset="0" stopColor="#000" stopOpacity={0} />
+              <Stop offset="0.48" stopColor="#000" stopOpacity={0} />
+              <Stop offset="0.6" stopColor="#000" stopOpacity={0.25} />
+              <Stop offset="1" stopColor="#000" stopOpacity={0.45} />
+            </RadialGradient>
+            <LinearGradient id="liqRim" gradientUnits="userSpaceOnUse" x1={cx - R} y1={cy - R} x2={cx + R} y2={cy + R}>
+              <Stop offset="0" stopColor={light} />
+              <Stop offset="0.5" stopColor={rgbToCss(c2)} />
+              <Stop offset="1" stopColor={rgbToCss(c1)} />
+            </LinearGradient>
+            <RadialGradient id="liqSpec" cx="50%" cy="50%" r="50%">
+              <Stop offset="0" stopColor="#fff" stopOpacity={0.85} />
+              <Stop offset="1" stopColor="#fff" stopOpacity={0} />
+            </RadialGradient>
+            <RadialGradient id="liqDrop" cx="38%" cy="32%" r="70%">
+              <Stop offset="0" stopColor="#fff" stopOpacity={0.95} />
+              <Stop offset="0.25" stopColor={light} />
+              <Stop offset="0.7" stopColor={rgbToCss(c2)} />
+              <Stop offset="1" stopColor={rgbToCss(c1)} stopOpacity={0.9} />
+            </RadialGradient>
+          </Defs>
+          <AnimatedCircle animatedProps={ripple} cx={cx} cy={cy} fill="none" stroke="#fff" strokeWidth={3} />
+          <AnimatedPath animatedProps={glow} fill="none" stroke={rgbToCss(c2)} strokeWidth={22} strokeLinejoin="round" />
+          <AnimatedPath animatedProps={drop} fill={uri ? 'url(#liqCover)' : rgbToCss(c2)} />
+          <AnimatedPath animatedProps={drop} fill="url(#liqShade)" />
+          <AnimatedPath animatedProps={drop} fill="none" stroke="url(#liqRim)" strokeWidth={2.5} strokeOpacity={0.9} />
+          <Ellipse cx={cx - R * 0.38} cy={cy - R * 0.5} rx={R * 0.3} ry={R * 0.13} fill="url(#liqSpec)" transform={`rotate(-32 ${cx - R * 0.38} ${cy - R * 0.5})`} />
+          <Ellipse cx={cx + R * 0.45} cy={cy + R * 0.55} rx={R * 0.12} ry={R * 0.05} fill="url(#liqSpec)" opacity={0.5} transform={`rotate(-32 ${cx + R * 0.45} ${cy + R * 0.55})`} />
+          {[0, 1, 2, 3].map((i) => (
+            <Droplet key={i} i={i} out={out} cx={cx} cy={cy} unit={unit} reduced={reduced} />
+          ))}
+        </Svg>
       </Animated.View>
-      <Animated.View
-        pointerEvents="none"
-        style={[{ position: 'absolute', left: 0, top: 0, width: S, height: S, borderRadius: S / 2, borderWidth: S * 0.025, borderColor: 'rgba(255,255,255,0.7)' }, ripple]}
-      />
-      {mosaic && (
-        <Animated.View style={[StyleSheet.absoluteFill, pixels]}>
-          <Svg width={S} height={S}>
-            {mosaic.map((c, i) => (
-              <Rect key={i} x={(i % 16) * cell} y={Math.floor(i / 16) * cell} width={cell + 0.5} height={cell + 0.5} fill={c} />
-            ))}
-          </Svg>
-        </Animated.View>
-      )}
-    </Animated.View>
+    </>
   );
 }
 
