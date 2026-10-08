@@ -12,6 +12,7 @@ import { initPlatform } from '../src/platform';
 import { useTheme } from '../src/theme';
 import { ActionSheetHost, AddToPlaylistHost, PromptHost } from '../src/components/hosts';
 import LoginScreen from '../src/screens/Login';
+import { UpdateBanner, useAutoUpdateCheck } from '../src/components/UpdateBanner';
 
 const queryClient = createQueryClient();
 const persister = createAsyncStoragePersister({ storage: AsyncStorage, key: 'sonora.query-cache', throttleTime: 2000 });
@@ -20,11 +21,18 @@ const PERSISTED = new Set(['albums', 'album', 'artists', 'artist', 'playlists', 
 function Root() {
   const t = useTheme();
   const session = useSession((s) => s.session);
+  useAutoUpdateCheck();
   useEffect(() => {
     if (session) void restoreQueueFromServer();
     else queryClient.clear();
   }, [session]);
-  if (!session) return <LoginScreen />;
+  if (!session)
+    return (
+      <>
+        <LoginScreen />
+        <UpdateBanner />
+      </>
+    );
   return (
     <>
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: 'slide_from_right' }}>
@@ -35,6 +43,7 @@ function Root() {
       <ActionSheetHost />
       <AddToPlaylistHost />
       <PromptHost />
+      <UpdateBanner />
     </>
   );
 }

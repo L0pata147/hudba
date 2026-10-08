@@ -274,12 +274,14 @@ The ⚡ button in the player bar (or Settings → Appearance → Classic mode) o
 - *Picture…* puts your own picture (PNG with transparency works best) behind the Winamp windows and animates it to the music Webamp plays: *Groove* (sways and bounces on the beat), *Pulse*, *Float* or *Still*, with a glow and a shine on beats. Pictures are kept in IndexedDB too.
 - Webamp is loaded only when classic mode opens (a separate ~300 kB gzip chunk). It plays the Navidrome stream URLs itself, so like the EQ it needs CORS on the stream.
 
-## Updates (desktop)
+## Updates
 
 The Windows app updates itself from the **Latest build** release (Tauri updater). Every release build gets the version `0.2.<build number>`; when the repository secret `TAURI_SIGNING_PRIVATE_KEY` is set, the build signs the installer and publishes `latest.json` next to it. The app checks a few seconds after start-up (Settings → About → *Check for updates at start-up*) and shows an *Update & restart* bar; *Check now* checks on demand.
 
 - The public key is in `apps/desktop/src-tauri/tauri.conf.json` (`plugins.updater.pubkey`); the private key must never be committed. Without the secret the build still works, just without update files.
 - Updates start working from the first build that contains the updater (install that one by hand once).
+
+**Android** updates itself from the same release: each build gets `versionCode` = build number and publishes `android-version.json` next to the APK. The app checks a few seconds after start-up (or Settings → About → *Check now*), downloads the new APK and opens the system installer, which installs it over the current app (every APK is signed with the same key). Android asks once to allow installing apps from Sonora. Like on Windows, the first build with the updater has to be installed by hand.
 
 ## Radio
 

@@ -10,7 +10,7 @@ import { formatBytes, pluralize } from '@sonora/utils';
 import { BackButton, TopInset } from '../src/components/Screen';
 import { Button, T } from '../src/components/ui';
 import { useTheme } from '../src/theme';
-import pkg from '../package.json';
+import { useUpdater } from '../src/platform/updater';
 
 const set = <K extends keyof Preferences>(k: K, v: Preferences[K]) => preferencesStore.getState().set(k, v);
 
@@ -55,6 +55,16 @@ export default function Settings() {
   const session = useSession((s) => s.session);
   const records = useDownloads((s) => s.records);
   const qc = useQueryClient();
+  const updater = useUpdater();
+  const updateDetail = {
+    idle: 'New builds come from GitHub (Latest build).',
+    checking: 'Checking…',
+    none: 'You have the latest version.',
+    available: `Version ${updater.version} is available.`,
+    downloading: `Downloading… ${Math.round(updater.progress * 100)} %`,
+    installing: 'Opening the installer…',
+    error: `Update failed: ${updater.error ?? ''}`,
+  }[updater.status];
   const done = Object.values(records).filter((r) => r.status === 'done');
   const sw = (v: boolean, k: 'gapless' | 'scrobble' | 'syncQueue' | 'compactMode') => (
     <Switch value={v} onValueChange={(x) => set(k, x)} trackColor={{ true: t.accent, false: t.surfaceActive }} thumbColor="#fff" />
@@ -134,7 +144,17 @@ export default function Settings() {
           />
         </Section>
         <Section title="About">
-          <Row label="Sonora" detail={`v${pkg.version}`} />
+          <Row label="Sonora" detail={`v${updater.current}`} />
+          <Row label="Check for updates at start-up">
+            <Switch value={prefs.autoUpdate} onValueChange={(x) => set('autoUpdate', x)} trackColor={{ true: t.accent, false: t.surfaceActive }} thumbColor="#fff" />
+          </Row>
+          <Row label="Updates" detail={updateDetail}>
+            {updater.status === 'available' ? (
+              <Button title="Update" onPress={() => void updater.install()} />
+            ) : (
+              <Button title="Check now" variant="secondary" loading={updater.status === 'checking'} onPress={() => void updater.check()} />
+            )}
+          </Row>
           <Row label="Navidrome compatibility" detail={session ? `Subsonic ${session.serverInfo.apiVersion}${session.serverInfo.openSubsonic ? ' + OpenSubsonic' : ''}` : undefined} />
           <Row label="Licenses" detail="React Native, Expo, TanStack Query, Zustand, Lucide (ISC), FlashList (MIT)" />
         </Section>

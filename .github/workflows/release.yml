@@ -98,6 +98,17 @@ jobs:
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
       - run: pnpm install --frozen-lockfile
+      - name: Version
+        # Every build gets a higher versionCode so the app's updater (and Android) see it as newer.
+        working-directory: apps/mobile
+        run: |
+          node -e "
+            const fs = require('fs');
+            const c = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            c.expo.version = '0.2.${{ github.run_number }}';
+            c.expo.android.versionCode = ${{ github.run_number }};
+            fs.writeFileSync('app.json', JSON.stringify(c, null, 2));
+          "
       - name: Generate native Android project
         working-directory: apps/mobile
         run: npx expo prebuild --platform android --no-install
@@ -105,7 +116,19 @@ jobs:
         working-directory: apps/mobile/android
         # Release build signed with the template's debug key: installable by sideloading, not for Google Play.
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
-      - run: mkdir -p out && cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk out/Sonora-Android.apk
+      - name: Collect APK
+        run: |
+          mkdir -p out
+          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk out/Sonora-Android.apk
+          # android-version.json tells installed apps about this build.
+          node -e "
+            require('fs').writeFileSync('out/android-version.json', JSON.stringify({
+              version: '0.2.${{ github.run_number }}',
+              versionCode: ${{ github.run_number }},
+              url: 'https://github.com/${{ github.repository }}/releases/download/latest-build/Sonora-Android.apk',
+            }, null, 2));
+          "
+          cat out/android-version.json
       - uses: actions/upload-artifact@v4
         with:
           name: android
@@ -130,6 +153,6 @@ jobs:
           body: |
             Automatic build of commit ${{ github.sha }}.
 
-            **Android:** download `Sonora-Android.apk` on the phone and open it (allow installing from this source when asked).
+            **Android:** download `Sonora-Android.apk` on the phone and open it (allow installing from this source when asked). Once installed, Sonora offers new builds itself (Settings → About → Updates).
             **Windows:** download `Sonora-Setup-Windows.exe` (or the `.msi`) and run it. SmartScreen may warn because the installer is not code-signed — choose *More info → Run anyway*. Once installed, Sonora updates itself from this release (Settings → About → Updates).
           files: dist/*
