@@ -5,6 +5,11 @@ import { lazyStorage } from './platform';
 import { DEFAULT_EQUALIZER, normalizeEqualizer } from './equalizer';
 import { normalizeVisualizerStyle } from './visualizer-styles';
 
+/** Visualizer intensity clamped to 0…1 (default for missing/invalid values). */
+export function normalizeIntensity(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.7;
+}
+
 export const DEFAULT_PREFERENCES: Preferences = {
   theme: 'dark',
   accent: 'ember',
@@ -20,6 +25,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   equalizer: DEFAULT_EQUALIZER,
   visualizer: false,
   visualizerStyle: 'ring',
+  visualizerIntensity: 0.7,
   skin: 'sonora',
   autoUpdate: true,
 };
@@ -54,6 +60,7 @@ export const preferencesStore = createStore<PreferencesState>()(
           ...p,
           equalizer: normalizeEqualizer(p.equalizer ?? current.equalizer),
           visualizerStyle: normalizeVisualizerStyle(p.visualizerStyle),
+          visualizerIntensity: normalizeIntensity(p.visualizerIntensity),
         };
       },
     },

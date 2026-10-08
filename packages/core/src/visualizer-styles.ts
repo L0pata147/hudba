@@ -34,6 +34,7 @@ export const VISUALIZER_STYLES: VisualizerStyleInfo[] = [
   { ...base, id: 'liquid', name: 'Liquid cover', shake: true, backdrop: false },
   { ...base, id: 'lyrics', name: 'Lyric pulse', backdrop: false },
   { ...base, id: 'ambient', name: 'Ambient', backdrop: false },
+  { ...base, id: 'dancer', name: 'Dancer', desktopOnly: true, backdrop: false },
 ];
 
 export type VisualizerPlatform = 'desktop' | 'mobile';

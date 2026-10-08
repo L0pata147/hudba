@@ -304,7 +304,7 @@ export interface EqualizerSettings {
   preset: string | null;
 }
 
-/** Visualizer styles; `milkdrop` needs WebGL and exists on desktop only. */
+/** Visualizer styles; `milkdrop` and `dancer` need WebGL and exist on desktop only. */
 export type VisualizerStyle =
   | 'ring'
   | 'bars'
@@ -316,7 +316,8 @@ export type VisualizerStyle =
   | 'milkdrop'
   | 'liquid'
   | 'lyrics'
-  | 'ambient';
+  | 'ambient'
+  | 'dancer';
 
 export interface Preferences {
   theme: ThemeMode;
@@ -336,6 +337,8 @@ export interface Preferences {
   /** Show the spectrum visualizer instead of the cover in the full-screen player. */
   visualizer: boolean;
   visualizerStyle: VisualizerStyle;
+  /** How strongly the visualizer moves with the music, 0…1. */
+  visualizerIntensity: number;
   /** App skin id (see `SKINS` in @sonora/ui); 'sonora' = normal theme + accent. */
   skin: string;
   /** Desktop: check GitHub for a new version at start-up. */

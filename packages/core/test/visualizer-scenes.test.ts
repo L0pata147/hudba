@@ -48,7 +48,9 @@ describe('visualizer styles', () => {
     expect(normalizeVisualizerStyle('milkdrop', 'mobile')).toBe('ring');
     expect(normalizeVisualizerStyle('bogus')).toBe('ring');
     expect(normalizeVisualizerStyle('galaxy', 'mobile')).toBe('galaxy');
-    expect(cycleVisualizerStyle('ring', -1, 'desktop')).toBe('ambient');
+    expect(cycleVisualizerStyle('ring', -1, 'desktop')).toBe('dancer');
+    expect(cycleVisualizerStyle('ring', -1, 'mobile')).toBe('ambient');
+    expect(normalizeVisualizerStyle('dancer', 'mobile')).toBe('ring');
     expect(cycleVisualizerStyle('galaxy', 1, 'desktop')).toBe('milkdrop');
     expect(cycleVisualizerStyle('galaxy', 1, 'mobile')).toBe('liquid');
   });

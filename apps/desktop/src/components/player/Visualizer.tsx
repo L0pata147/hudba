@@ -30,6 +30,9 @@ import { createLiquidRenderer } from './visualizer/liquid';
 import { createLiquidGlRenderer } from './visualizer/liquid-gl';
 import { createAmbientRenderer } from './visualizer/ambient';
 import { LyricPulse } from './visualizer/LyricPulse';
+import { createDancerRenderer } from './visualizer/dancer';
+import { DancerPanel } from './visualizer/DancerPanel';
+import { useCharacters } from '../../lib/characters';
 
 const BANDS = 72;
 const WAVE = 512;
@@ -64,6 +67,8 @@ interface RendererOptions {
   /** the WebGL liquid cover could not use the image (no CORS) */
   liquid2d: boolean;
   onLiquidFallback: () => void;
+  /** effect intensity 0…1 (preference) */
+  intensity: () => number;
 }
 
 function createRenderer(style: VisualizerStyle, canvas: HTMLCanvasElement, o: RendererOptions): Renderer | null {
@@ -78,6 +83,15 @@ function createRenderer(style: VisualizerStyle, canvas: HTMLCanvasElement, o: Re
       return createAmbientRenderer(canvas, o.backgroundUrl, 0.7);
     case 'ambient':
       return createAmbientRenderer(canvas, o.backgroundUrl);
+    case 'dancer':
+      return createDancerRenderer(
+        canvas,
+        () => {
+          const c = useCharacters.getState();
+          return { image: c.image, dance: c.dance };
+        },
+        o.intensity,
+      );
     default:
       return isPathScene(style) ? createPathRenderer(canvas, style) : null;
   }
@@ -191,9 +205,10 @@ export function Visualizer({ song }: { song: Song }) {
       backgroundUrl: () => artworkUrl(songRef.current.coverArtId, 'card'),
       liquid2d,
       onLiquidFallback: () => setLiquid2d(true),
+      intensity: () => preferencesStore.getState().visualizerIntensity,
     });
     if (!renderer) {
-      if (style === 'milkdrop') setGlFailed(true);
+      if (style === 'milkdrop' || style === 'dancer') setGlFailed(true);
       return;
     }
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -391,6 +406,7 @@ export function Visualizer({ song }: { song: Song }) {
         {art ? <img src={art} alt="" className="size-full object-cover" draggable={false} /> : <div className="size-full bg-surface-active" />}
       </div>
       {style === 'lyrics' && <LyricPulse song={song} color={c1} immersive={immersive} />}
+      {style === 'dancer' && <DancerPanel hidden={hidden} />}
       <div ref={flashRef} className="pointer-events-none invisible absolute inset-0 bg-white opacity-0" aria-hidden />
 
       <div className={clsx('absolute bottom-5 left-6 max-w-[70%] drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] transition-opacity duration-500', immersive && 'bottom-10 left-10')}>
@@ -486,7 +502,7 @@ export function Visualizer({ song }: { song: Song }) {
       {(unavailable || glFailed) && (
         <p className="absolute top-16 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-[12.5px] text-white/80">
           <AudioLines className="size-4" />
-          {glFailed ? 'Milkdrop needs WebGL 2, which this device does not offer' : 'Visualizer needs cross-origin audio from your server'}
+          {glFailed ? `${info.name} needs WebGL 2, which this device does not offer` : 'Visualizer needs cross-origin audio from your server'}
         </p>
       )}
     </div>

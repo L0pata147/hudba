@@ -232,7 +232,7 @@ test('visualizer styles: every style draws, menu and arrow keys switch, the choi
       return lit / n;
     });
 
-  const expected = ['ring', 'bars', 'mirror', 'scope', 'terrain', 'tunnel', 'galaxy', 'milkdrop', 'liquid', 'lyrics', 'ambient'];
+  const expected = ['ring', 'bars', 'mirror', 'scope', 'terrain', 'tunnel', 'galaxy', 'milkdrop', 'liquid', 'lyrics', 'ambient', 'dancer'];
   const next = page.getByRole('button', { name: 'Next visualizer style' });
   for (const [i, id] of expected.entries()) {
     if (i) await next.click();
@@ -264,5 +264,57 @@ test('visualizer styles: every style draws, menu and arrow keys switch, the choi
   await page.reload();
   await page.getByRole('button', { name: 'Full screen player' }).click();
   await expect(page.getByTestId('visualizer')).toHaveAttribute('data-style', 'terrain');
+  expect(errors).toEqual([]);
+});
+
+test('dancer: add a character, pick a dance and intensity, all remembered', async ({ page, isMobile }) => {
+  test.skip(isMobile || !!real, 'desktop, mock server');
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await installMockNavidrome(page);
+  await page.goto('/');
+  await page.getByLabel('Server URL').fill(MOCK_SERVER);
+  await page.getByLabel('Username').fill(MOCK_USER);
+  await page.getByLabel('Password', { exact: true }).fill(MOCK_PASSWORD);
+  await page.getByRole('button', { name: 'Log in' }).click();
+  await page.goto('/#/search?q=glass');
+  await page.getByRole('region', { name: 'Albums' }).getByRole('link').first().click();
+  await page.getByRole('table').getByRole('row').filter({ has: page.getByRole('cell') }).first().click();
+  await page.getByRole('button', { name: 'Full screen player' }).click();
+  await page.keyboard.press('v');
+  await page.getByRole('button', { name: 'Visualizer style', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Dancer' }).click();
+  const vis = page.getByTestId('visualizer');
+  await expect(vis).toHaveAttribute('data-style', 'dancer');
+  await expect(page.getByText('Add a character')).toBeVisible();
+
+  // A small picture with a plain background (removed automatically).
+  const png = await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 40;
+    c.height = 80;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#f4eef2';
+    g.fillRect(0, 0, 40, 80);
+    g.fillStyle = '#e0409a';
+    g.fillRect(10, 10, 20, 60);
+    return c.toDataURL('image/png').split(',')[1]!;
+  });
+  await page.getByLabel('Character picture').setInputFiles({ name: 'my_dancer.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+  const panel = page.getByTestId('dancer-panel');
+  await expect(panel).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByLabel('Character', { exact: true })).toHaveText(/my dancer/);
+  await page.getByLabel('Dance').selectOption('bounce');
+  await page.getByLabel('Visualizer intensity').fill('35');
+  // the renderer reports the stage brightness and the tempo it follows
+  await expect.poll(() => vis.locator('canvas').getAttribute('data-lum'), { timeout: 10_000 }).not.toBeNull();
+
+  await page.reload();
+  await page.getByRole('button', { name: 'Full screen player' }).click();
+  await expect(page.getByTestId('visualizer')).toHaveAttribute('data-style', 'dancer');
+  await expect(page.getByLabel('Dance')).toHaveValue('bounce');
+  await expect(page.getByLabel('Visualizer intensity')).toHaveValue('35');
+  await page.getByRole('button', { name: 'Remove character' }).click();
+  await expect(page.getByText('Add a character')).toBeVisible();
   expect(errors).toEqual([]);
 });

@@ -250,6 +250,14 @@ Desktop path styles are drawn into an offscreen layer that keeps motion trails, 
 - **Desktop audio** — a Web Audio `AnalyserNode` tapping the music **before** volume/EQ, so it looks the same at any volume. Like the EQ it needs CORS on the stream (Navidrome sends it) and shows a note if the server blocks it. All styles run at ~60 fps in headless Chromium; the canvas is capped at ~2.3 MP. `prefers-reduced-motion` turns off shake, flash, particles and most motion.
 - **Mobile audio** — expo-audio's sample stream (Android `Visualizer` API: 1024 8-bit samples ~10×/s), turned into a spectrum by an FFT in JS (`byteSpectrum`). Because only ~10 short snapshots per second arrive, beats are caught less reliably than on desktop; levels, bass and waveform ease between snapshots. Android requires the **microphone permission** for this API (nothing is recorded); the visualizer asks for it with an explanation, and without it the styles just idle. Cover colours: the cover is fetched at 32 px (Navidrome serves it as JPEG) and decoded with `jpeg-js`.
 
+### Dancer (desktop, beta)
+
+The *Dancer* style makes a character picture dance to the music on a small neon stage. Add pictures with *Choose a picture* (or drop them on the visualizer); a PNG with a transparent background works best, a plain-coloured background is removed automatically and the picture is trimmed to the figure. Characters are kept in IndexedDB.
+
+- The picture is drawn as a bendable grid (WebGL2): the feet stay on the floor, the body leans, the head nods and the top (hair, ears) follows a little late; it squashes on landing and can hop.
+- A beat clock locks onto the beats the analyser finds (tempo from the gaps between them, phase pulled to each beat), so the moves land on the beat; without beats the character calms down to breathing.
+- Dances: *Groove*, *Bounce*, *Headbang*, *Sway*; *Intensity* (0–100 %) scales all motion and glow.
+
 ## Skins
 
 Settings → Appearance → **Skin** restyles the whole app (desktop and mobile): colours, accent, fonts, corner radius, background and a pattern. Skins are defined once in `packages/ui/src/skins.ts`; the desktop app applies them as CSS variables (`src/lib/theme.ts`), the mobile app through `useTheme()`.
