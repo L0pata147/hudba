@@ -208,13 +208,26 @@ export function useSearch(query: string) {
   });
 }
 
+/**
+ * Why a song may have no lyrics, for the empty lyrics view: Navidrome reads
+ * .lrc files next to songs from 0.55 on and only after a scan.
+ */
+export function lyricsHint(server: { type?: string; serverVersion?: string } | undefined): string {
+  const m = /^(\d+)\.(\d+)/.exec(server?.serverVersion ?? '');
+  if (server?.type === 'navidrome' && m && (Number(m[1]) === 0 && Number(m[2]) < 55)) {
+    return `Your Navidrome ${m[0]} only reads lyrics embedded in the files. Update it to 0.55 or newer to use .lrc files.`;
+  }
+  return 'Lyrics come from the file itself or from an .lrc file with the same name next to it. After adding .lrc files, run a full scan in Navidrome (Scan library → Full scan).';
+}
+
 export function useLyrics(song: Song | undefined) {
   const scope = useScope();
   return useQuery({
     queryKey: keys.lyrics(scope, song?.id ?? ''),
     queryFn: ({ signal }) => getNavidrome().lyrics.forSong(song as Song, { signal }),
     enabled: enabled() && Boolean(song),
-    staleTime: Infinity,
+    // Found lyrics never change; "none" is asked again later (e.g. after .lrc files were added and the server rescanned).
+    staleTime: (q) => (q.state.data ? Infinity : 60_000),
     retry: false,
   });
 }

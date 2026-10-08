@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef } from 'react';
 import clsx from 'clsx';
 import { MicVocal } from 'lucide-react';
 import type { Song } from '@sonora/types';
-import { playerStore, useLyrics, usePlayer } from '@sonora/core';
+import { lyricsHint, playerStore, useLyrics, usePlayer, useSession } from '@sonora/core';
 import { Skeleton } from '../ui/Skeleton';
 
 /** Lyrics with live highlighting when the server provides synced lyrics. */
 export function Lyrics({ song }: { song: Song }) {
-  const { data, isPending, isError } = useLyrics(song);
+  const { data, isPending, isError, refetch, isFetching } = useLyrics(song);
+  const server = useSession((s) => s.session?.serverInfo);
   const positionMs = usePlayer((s) => s.position * 1000);
   const containerRef = useRef<HTMLDivElement>(null);
   const activeIdx = useMemo(() => {
@@ -39,7 +40,15 @@ export function Lyrics({ song }: { song: Song }) {
       <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-fg-2">
         <MicVocal className="size-8" />
         <p className="font-semibold">No lyrics for this song</p>
-        <p className="max-w-xs text-sm text-fg-3">Lyrics appear when they are embedded in your files or stored as .lrc next to them on the server.</p>
+        <p className="max-w-xs text-sm text-fg-3">{lyricsHint(server)}</p>
+        <button
+          type="button"
+          disabled={isFetching}
+          onClick={() => void refetch()}
+          className="mt-1 rounded-full bg-surface-hover px-4 py-1.5 text-sm font-semibold text-fg hover:bg-surface-active disabled:opacity-60"
+        >
+          {isFetching ? 'Looking…' : 'Try again'}
+        </button>
       </div>
     );
   }

@@ -6,8 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { AudioWaveform, ChevronDown, ListMusic, MicVocal, MoreVertical, Repeat, Repeat1, Shuffle, SkipBack, SkipForward } from 'lucide-react-native';
-import { playerStore, preferencesStore, useCurrentItem, useLyrics, usePlayer, usePlayerShallow, usePreferences } from '@sonora/core';
-import { Artwork, PlayButton, T } from '../src/components/ui';
+import { lyricsHint, playerStore, preferencesStore, useCurrentItem, useLyrics, usePlayer, usePlayerShallow, usePreferences, useSession } from '@sonora/core';
+import { Artwork, Button, PlayButton, T } from '../src/components/ui';
 import { Seekbar } from '../src/components/Seekbar';
 import { FavoriteToggle } from '../src/components/FavoriteToggle';
 import { useSongSheet } from '../src/actions';
@@ -16,10 +16,18 @@ import { Visualizer } from '../src/components/Visualizer';
 
 function LyricsPanel() {
   const item = useCurrentItem();
-  const { data, isPending } = useLyrics(item?.song);
+  const { data, isPending, refetch, isFetching } = useLyrics(item?.song);
+  const server = useSession((s) => s.session?.serverInfo);
   const positionMs = usePlayer((s) => s.position * 1000);
   if (isPending) return <T dim={1}>Loading lyrics…</T>;
-  if (!data?.lines.length) return <T dim={1}>No lyrics for this song.</T>;
+  if (!data?.lines.length)
+    return (
+      <View style={{ gap: 8, alignItems: 'flex-start' }}>
+        <T style={{ fontWeight: '700' }}>No lyrics for this song.</T>
+        <T variant="caption" dim={1}>{lyricsHint(server)}</T>
+        <Button title={isFetching ? 'Looking…' : 'Try again'} variant="secondary" loading={isFetching} onPress={() => void refetch()} />
+      </View>
+    );
   let active = -1;
   if (data.synced) data.lines.forEach((l, i) => l.start !== undefined && l.start <= positionMs + 250 && (active = i));
   return (
