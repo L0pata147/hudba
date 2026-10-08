@@ -720,34 +720,111 @@ export function stepTunnel(s: TunnelState, i: SceneInput): SceneOutput {
 }
 
 /* ------------------------------------------------------------------ */
-/* 6) Galaxy: tilted spiral, glowing core, nebula dust, shockwaves      */
+/* 6) Galaxy: a grand-design spiral seen at an angle.                 */
+/*    Arms follow a logarithmic spiral and turn as one (no winding).   */
+/*    Each radius listens to one band: core = bass, rim = treble.      */
 /* ------------------------------------------------------------------ */
 
+/** Star kinds, also the path they are drawn into. */
+const G_FAINT = 0;
+const G_MID = 1;
+const G_BRIGHT = 2;
+const G_DUST = 3;
+const G_KNOT = 4;
+const G_BULGE = 5;
+
 export interface GalaxyState extends Seeded {
+  /** radius 0…1 of the disc */
   r: number[];
+  /** angle in the disc, before the rotation */
   a: number[];
+  /** height above the disc (bulge only), in disc radii */
+  z: number[];
   size: number[];
-  dust: number[];
+  kind: number[];
+  /** nebula haze: soft ellipses along the arms */
+  hr: number[];
+  ha: number[];
+  hs: number[];
   bgA: string;
   bgB: string;
   bw: number;
   bh: number;
+  /** rotation of the whole disc */
+  phi: number;
   shocks: number[];
   prevKick: number;
 }
 
+function gauss(s: Seeded): number {
+  'worklet';
+  return Math.sqrt(-2 * Math.log(1 - rnd(s) * 0.999999)) * Math.cos(2 * Math.PI * rnd(s));
+}
+
+/** Angle of an arm at radius r (trailing log spiral, ~1.4 turns from core to rim). */
+function armAngle(arm: number, r: number): number {
+  'worklet';
+  return arm * Math.PI - 3.3 * Math.log(Math.max(r, 0.05) / 0.05);
+}
+
 export function initGalaxy(quality: 0 | 1, seed = 29): GalaxyState {
   'worklet';
-  const s: GalaxyState = { seed, r: [], a: [], size: [], dust: [], bgA: '', bgB: '', bw: 0, bh: 0, shocks: [], prevKick: 0 };
-  const n = quality ? 5200 : 520;
-  for (let k = 0; k < n; k++) {
-    const r = Math.pow(rnd(s), 0.75);
-    const spread = (rnd(s) - 0.5) * (0.9 - r * 0.5);
-    const isDust = rnd(s) < 0.06 ? 1 : 0;
+  const s: GalaxyState = {
+    seed, r: [], a: [], z: [], size: [], kind: [], hr: [], ha: [], hs: [],
+    bgA: '', bgB: '', bw: 0, bh: 0, phi: 0, shocks: [], prevKick: 0,
+  };
+  const add = (r: number, a: number, z: number, size: number, kind: number) => {
     s.r.push(r);
-    s.a.push(((k % 3) * Math.PI * 2) / 3 + spread);
-    s.dust.push(isDust);
-    s.size.push(isDust ? (quality ? 6 : 8) + rnd(s) * 10 : quality ? 0.8 + rnd(s) * 1.7 : 1.3 + rnd(s) * 2);
+    s.a.push(a);
+    s.z.push(z);
+    s.size.push(size);
+    s.kind.push(kind);
+  };
+  const q = quality ? 1 : 0.13;
+  const px = quality ? 1 : 1.5;
+  // Arms: dense along the spiral, widening and thinning outwards.
+  const arms = Math.round(3300 * q);
+  for (let k = 0; k < arms; k++) {
+    const r = 0.07 + Math.pow(rnd(s), 0.85) * 0.93;
+    const arm = k % 2;
+    const width = 0.05 / r + 0.16;
+    const a = armAngle(arm, r) + gauss(s) * Math.min(0.7, width);
+    const rr = r * (1 + gauss(s) * 0.03);
+    const pick = rnd(s);
+    const kind = pick < 0.08 ? G_BRIGHT : pick < 0.45 ? G_MID : G_FAINT;
+    const size = (kind === G_BRIGHT ? 1.6 + rnd(s) * 1.2 : kind === G_MID ? 1 + rnd(s) * 0.4 : 0.7 + rnd(s) * 0.4) * px;
+    add(rr, a, 0, size, kind);
+  }
+  // Dust lanes on the inner edge of each arm.
+  const dust = Math.round(500 * q);
+  for (let k = 0; k < dust; k++) {
+    const r = 0.12 + Math.pow(rnd(s), 0.9) * 0.75;
+    add(r * 0.9, armAngle(k % 2, r) + gauss(s) * 0.12, 0, (2.2 + rnd(s) * 2.4) * px, G_DUST);
+  }
+  // Star-forming knots: small bright clusters strung along the arms.
+  const knots = quality ? 30 : 12;
+  for (let k = 0; k < knots; k++) {
+    const r = 0.25 + rnd(s) * 0.65;
+    const a = armAngle(k % 2, r) + gauss(s) * 0.15;
+    const n = quality ? 7 : 4;
+    for (let j = 0; j < n; j++) add(r + gauss(s) * 0.012, a + (gauss(s) * 0.012) / r, 0, (1.2 + rnd(s) * 1.4) * px, G_KNOT);
+  }
+  // A faint disc between the arms.
+  const disc = Math.round(700 * q);
+  for (let k = 0; k < disc; k++) add(0.05 + Math.pow(rnd(s), 0.7) * 0.95, rnd(s) * Math.PI * 2, 0, (0.6 + rnd(s) * 0.5) * px, G_FAINT);
+  // The bulge: a dense, slightly puffy ball of old stars.
+  const bulge = Math.round(1000 * q);
+  for (let k = 0; k < bulge; k++) {
+    const r = Math.abs(gauss(s)) * 0.085;
+    add(r, rnd(s) * Math.PI * 2, gauss(s) * 0.05, (0.7 + rnd(s) * 0.8) * px, G_BULGE);
+  }
+  // Nebula haze following the arms.
+  const haze = quality ? 70 : 26;
+  for (let k = 0; k < haze; k++) {
+    const r = 0.1 + Math.pow(rnd(s), 0.8) * 0.85;
+    s.hr.push(r);
+    s.ha.push(armAngle(k % 2, r) + gauss(s) * 0.18);
+    s.hs.push(0.05 + rnd(s) * 0.07);
   }
   return s;
 }
@@ -755,7 +832,16 @@ export function initGalaxy(quality: 0 | 1, seed = 29): GalaxyState {
 function galaxyRadius(w: number, h: number) {
   'worklet';
   // Portrait screens let the arms reach a little past the edges.
-  return Math.min(w < h ? w * 0.62 : w * 0.47, (h * 0.47) / 0.5);
+  return Math.min(w < h ? w * 0.62 : w * 0.46, (h * 0.46) / 0.5);
+}
+
+/** Ellipse with semi-axes rx, ry turned by rot radians. */
+function ellipse(x: number, y: number, rx: number, ry: number, rot: number): string {
+  'worklet';
+  const c = Math.cos(rot) * rx;
+  const sn = Math.sin(rot) * rx;
+  const deg = r1((rot * 180) / Math.PI);
+  return `M${r1(x - c)} ${r1(y - sn)}a${r1(rx)} ${r1(ry)} ${deg} 1 0 ${r1(2 * c)} ${r1(2 * sn)}a${r1(rx)} ${r1(ry)} ${deg} 1 0 ${r1(-2 * c)} ${r1(-2 * sn)}Z`;
 }
 
 export function stepGalaxy(s: GalaxyState, i: SceneInput): SceneOutput {
@@ -779,64 +865,70 @@ export function stepGalaxy(s: GalaxyState, i: SceneInput): SceneOutput {
     s.bh = h;
   }
   const still = i.reduced ? 0 : 1;
-  const tilt = 0.5 + 0.1 * Math.sin(t * 0.07) * still;
-  const phi = t * 0.03 * still;
-  const cp = Math.cos(phi);
-  const sp = Math.sin(phi);
+  // Seen from ~62° with a slow nod; the long axis tilted a little off horizontal.
+  const tilt = 0.44 + 0.06 * Math.sin(t * 0.09) * still;
+  const lift = Math.sqrt(1 - tilt * tilt);
+  const psi = -0.32 + 0.06 * Math.sin(t * 0.05) * still;
+  const cp = Math.cos(psi);
+  const sp = Math.sin(psi);
   const rMax = galaxyRadius(w, h);
-  const spin = (0.05 + i.bass * 0.22 + i.kick * 0.3) * (i.reduced ? 0.3 : 1);
+  s.phi += dt * (0.06 + i.bass * 0.32 + i.kick * 0.5) * (i.reduced ? 0.3 : 1);
+  const breathe = 1 + i.bass * 0.05 + i.kick * 0.04;
   const high = sampleLevel(i.levels, 0.8);
-  const mid = sampleLevel(i.levels, 0.45);
-  const expand = 1 + i.bass * 0.1 + i.kick * 0.08;
-  let outer = '';
-  let middle = '';
-  let core = '';
-  let dust = '';
+  const groups = ['', '', '', '', '', ''];
   for (let k = 0; k < s.r.length; k++) {
     const r = s.r[k]!;
-    const a = s.a[k]! + (spin * dt) / (0.25 + r);
-    s.a[k] = a;
-    const th = a + r * 3.4;
-    const R = r * rMax * expand;
+    const kind = s.kind[k]!;
+    // A faint ripple running out through the disc keeps it from looking rigid.
+    const th = s.a[k]! + s.phi + 0.05 * Math.sin(t * 0.7 - r * 9) * still;
+    const R = r * rMax * breathe;
     const x0 = Math.cos(th) * R;
-    const y0 = Math.sin(th) * R * tilt;
+    const y0 = Math.sin(th) * R * tilt - s.z[k]! * rMax * lift;
     const x = cx + x0 * cp - y0 * sp;
     const y = cy + x0 * sp + y0 * cp;
-    if (s.dust[k]) {
-      const size = s.size[k]! * (1 + i.bass * 0.3);
-      dust += rect(x - size / 2, y - size / 2, size, size);
+    // Each radius follows one band of the spectrum.
+    const lv = sampleLevel(i.levels, r);
+    let size = s.size[k]!;
+    if (kind === G_BRIGHT || kind === G_KNOT) {
+      // Bright stars sparkle with the treble; drawn as small diamonds.
+      size *= 0.8 * (1 + high * 0.9 * (0.5 + 0.5 * Math.sin(t * 6 + k * 2.3)) + lv * 0.35);
+      groups[kind] += `M${r1(x)} ${r1(y - size)}l${r1(size)} ${r1(size)}l${r1(-size)} ${r1(size)}l${r1(-size)} ${r1(-size)}Z`;
       continue;
     }
-    const tw = 0.5 + 0.5 * Math.sin(t * 5 + k * 1.7);
-    const size = s.size[k]! * (1 + high * 1.6 * tw + (r < 0.3 ? mid * 0.6 : 0));
-    const sq = rect(x - size / 2, y - size / 2, size, size);
-    if (r < 0.2) core += sq;
-    else if (r < 0.5) middle += sq;
-    else outer += sq;
+    if (kind !== G_DUST) size *= 0.85 + lv * 0.45;
+    groups[kind] += rect(x - size / 2, y - size / 2, size, size);
   }
-  // A ring of light running through the disc on every beat.
+  let haze = '';
+  for (let k = 0; k < s.hr.length; k++) {
+    const th = s.ha[k]! + s.phi;
+    const R = s.hr[k]! * rMax * breathe;
+    const x0 = Math.cos(th) * R;
+    const y0 = Math.sin(th) * R * tilt;
+    const rad = s.hs[k]! * rMax * (1 + sampleLevel(i.levels, s.hr[k]!) * 0.4);
+    const hx = cx + x0 * cp - y0 * sp;
+    const hy = cy + x0 * sp + y0 * cp;
+    // Nested ellipses add up to a soft-edged cloud.
+    for (let l = 3; l >= 1; l--) haze += ellipse(hx, hy, (rad * l) / 3, (rad * tilt * l) / 3, psi);
+  }
+  // A ring of light running out through the disc on every beat.
   if (!i.reduced && beatStarted(s, i.kick)) s.shocks.push(0);
   let shock = '';
   let youngest = 1;
   const alive: number[] = [];
   for (const age0 of s.shocks) {
     const age = age0 + dt;
-    if (age > 0.9) continue;
+    if (age > 1.1) continue;
     alive.push(age);
-    youngest = Math.min(youngest, age / 0.9);
-    const rr = (0.08 + (age / 0.9) * 1.2) * rMax;
-    for (let j = 0; j <= 48; j++) {
-      const th = ((j % 48) / 48) * Math.PI * 2;
-      const x0 = Math.cos(th) * rr;
-      const y0 = Math.sin(th) * rr * tilt;
-      shock += `${j ? 'L' : 'M'}${r1(cx + x0 * cp - y0 * sp)} ${r1(cy + x0 * sp + y0 * cp)}`;
-    }
+    const p = age / 1.1;
+    youngest = Math.min(youngest, p);
+    const rr = (0.06 + (1 - (1 - p) * (1 - p)) * 1.05) * rMax;
+    shock += ellipse(cx, cy, rr, rr * tilt, psi);
   }
   s.shocks = alive;
   const tw = i.reduced ? 0 : 1;
   return {
-    paths: [rect(0, 0, w, h), s.bgA, s.bgB, dust, outer, middle, core, shock],
-    alphas: [1, 0.5 + 0.35 * Math.sin(t * 1.1) * tw, 0.5 + 0.35 * Math.cos(t * 1.5) * tw, 1, 1, 1, 1, alive.length ? 1 - youngest : 0],
+    paths: [rect(0, 0, w, h), s.bgA, s.bgB, haze, groups[G_FAINT]!, groups[G_MID]!, groups[G_BRIGHT]!, groups[G_DUST]!, groups[G_KNOT]!, groups[G_BULGE]!, shock],
+    alphas: [1, 0.5 + 0.35 * Math.sin(t * 1.1) * tw, 0.5 + 0.35 * Math.cos(t * 1.5) * tw, 1, 1, 1, 1, 1, 1, 1, alive.length ? 1 - youngest : 0],
   };
 }
 
@@ -977,28 +1069,32 @@ export const PATH_SCENES: Record<PathSceneId, PathSceneInfo> = {
     ],
   },
   galaxy: {
-    trails: 0.6,
+    trails: 0.45,
     trailZoom: 1,
-    bloom: 0.7,
-    gradients: (w, h) => ({
-      galCore: {
-        kind: 'radial',
-        cx: w / 2,
-        cy: h / 2,
-        r: galaxyRadius(w, h) * 0.55,
-        stops: [[0, 'white', 0.55], [0.12, 'c2light', 0.45], [0.45, 'c2', 0.15], [1, 'c1', 0]],
-      },
-    }),
+    bloom: 0.8,
+    gradients: (w, h) => {
+      const cx = w / 2;
+      const cy = h / 2;
+      const R = galaxyRadius(w, h);
+      return {
+        galGlow: { kind: 'radial', cx, cy, r: R * 0.85, stops: [[0, 'c2light', 0.4], [0.12, 'c2', 0.2], [0.45, 'c1', 0.07], [1, 'c1', 0]] },
+        galArm: { kind: 'radial', cx, cy, r: R, stops: [[0, 'white', 1], [0.14, 'c2light', 1], [0.4, 'c2', 1], [0.75, 'c1', 1], [1, 'c1light', 1]] },
+        galBulge: { kind: 'radial', cx, cy, r: R * 0.22, stops: [[0, 'white', 1], [0.45, 'c2light', 1], [1, 'c2', 1]] },
+      };
+    },
     slots: () => [
-      { path: 0, mode: 'fill', paint: 'galCore', alpha: 1, boost: 0.5, back: true },
+      { path: 0, mode: 'fill', paint: 'galGlow', alpha: 1, boost: 0.5, back: true },
       { path: 1, mode: 'fill', paint: 'white', alpha: 1, back: true },
       { path: 2, mode: 'fill', paint: 'white', alpha: 1, back: true },
-      { path: 3, mode: 'fill', paint: 'mix', alpha: 0.07, add: true },
-      { path: 4, mode: 'fill', paint: 'c1', alpha: 0.85, boost: 0.3, add: true },
-      { path: 5, mode: 'fill', paint: 'c2', alpha: 0.9, boost: 0.3, add: true },
-      { path: 6, mode: 'fill', paint: 'c2light', alpha: 0.95, add: true },
-      { path: 7, mode: 'stroke', paint: 'c2light', width: 6, alpha: 0.15, add: true },
-      { path: 7, mode: 'stroke', paint: 'white', width: 1.5, alpha: 0.8 },
+      { path: 3, mode: 'fill', paint: 'galArm', alpha: 0.03, boost: 0.6, add: true },
+      { path: 4, mode: 'fill', paint: 'galArm', alpha: 0.55, add: true },
+      { path: 5, mode: 'fill', paint: 'galArm', alpha: 0.85, boost: 0.2, add: true },
+      { path: 6, mode: 'fill', paint: 'galArm', alpha: 1, boost: 0.3, add: true },
+      { path: 7, mode: 'fill', paint: 'black', alpha: 0.4 },
+      { path: 8, mode: 'fill', paint: 'c1light', alpha: 0.95, boost: 0.5, add: true },
+      { path: 9, mode: 'fill', paint: 'galBulge', alpha: 0.9, boost: 0.3, add: true },
+      { path: 10, mode: 'stroke', paint: 'c2light', width: 7, alpha: 0.14, add: true },
+      { path: 10, mode: 'stroke', paint: 'white', width: 1.4, alpha: 0.7 },
     ],
   },
 };

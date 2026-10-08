@@ -173,10 +173,10 @@ describe('scene details', () => {
     };
     expect(tunnelStep(1)).toBeGreaterThan(tunnelStep(0) * 3);
     const galaxyStep = (bass: number) => {
-      const st = initPathScene('galaxy', 0) as { a: number[] };
-      const a0 = st.a[7]!;
+      const st = initPathScene('galaxy', 0) as { phi: number };
+      const a0 = st.phi;
       stepPathScene('galaxy', st as never, input({ quality: 0, dt: 0.05, bass, kick: bass }));
-      return st.a[7]! - a0;
+      return st.phi - a0;
     };
     expect(galaxyStep(1)).toBeGreaterThan(galaxyStep(0) * 3);
   });
