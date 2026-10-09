@@ -11,6 +11,14 @@ export const DANCES: { id: DanceStyle; name: string }[] = [
   { id: 'sway', name: 'Sway' },
 ];
 
+/** Where the character dances: on a neon stage, or in a monitor it reaches out of. */
+export type DancerScene = 'stage' | 'monitor';
+
+export const SCENES: { id: DancerScene; name: string }[] = [
+  { id: 'stage', name: 'Stage' },
+  { id: 'monitor', name: 'Monitor' },
+];
+
 export interface SavedCharacter {
   id: string;
   name: string;
@@ -136,6 +144,7 @@ interface CharactersState {
   list: SavedCharacter[];
   currentId: string | null;
   dance: DanceStyle;
+  scene: DancerScene;
   /** decoded picture of the current character, for the renderer */
   image: HTMLImageElement | null;
   load(): Promise<void>;
@@ -143,9 +152,11 @@ interface CharactersState {
   remove(id: string): Promise<void>;
   select(id: string | null): Promise<void>;
   setDance(d: DanceStyle): Promise<void>;
+  setScene(s: DancerScene): Promise<void>;
 }
 
-const persistCurrent = (s: { currentId: string | null; dance: DanceStyle }) => idb.setValue(CURRENT, { id: s.currentId, dance: s.dance });
+const persistCurrent = (s: { currentId: string | null; dance: DanceStyle; scene: DancerScene }) =>
+  idb.setValue(CURRENT, { id: s.currentId, dance: s.dance, scene: s.scene });
 
 /**
  * The dancer characters kept in IndexedDB, the selected one and its dance.
@@ -176,16 +187,23 @@ export const useCharacters = create<CharactersState>()((set, get) => {
     list: [],
     currentId: null,
     dance: 'groove',
+    scene: 'stage',
     image: null,
     async load() {
       if (get().loaded) return;
       const [list, cur] = await Promise.all([
         idb.getValue<SavedCharacter[]>(LIST),
-        idb.getValue<{ id: string | null; dance: DanceStyle }>(CURRENT),
+        idb.getValue<{ id: string | null; dance: DanceStyle; scene?: DancerScene }>(CURRENT),
       ]);
       const chars = list ?? [];
       const id = cur?.id && chars.some((c) => c.id === cur.id) ? cur.id : (chars[0]?.id ?? null);
-      set({ loaded: true, list: chars, currentId: id, dance: DANCES.some((d) => d.id === cur?.dance) ? cur!.dance : 'groove' });
+      set({
+        loaded: true,
+        list: chars,
+        currentId: id,
+        dance: DANCES.some((d) => d.id === cur?.dance) ? cur!.dance : 'groove',
+        scene: SCENES.some((x) => x.id === cur?.scene) ? cur!.scene! : 'stage',
+      });
       await decode(id);
     },
     async add(files) {
@@ -213,6 +231,10 @@ export const useCharacters = create<CharactersState>()((set, get) => {
     },
     async setDance(dance) {
       set({ dance });
+      await persistCurrent(get());
+    },
+    async setScene(scene) {
+      set({ scene });
       await persistCurrent(get());
     },
   };

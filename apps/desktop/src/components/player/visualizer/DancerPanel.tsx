@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { ImagePlus, Trash2 } from 'lucide-react';
 import { preferencesStore, toast, usePreferences } from '@sonora/core';
-import { DANCES, useCharacters, type DanceStyle } from '../../../lib/characters';
+import { DANCES, SCENES, useCharacters, type DancerScene, type DanceStyle } from '../../../lib/characters';
 
 const selectCls = 'h-8 max-w-40 rounded-md bg-white/10 px-2 text-[13px] text-white outline-none focus-visible:ring-2 focus-visible:ring-white/60';
 
@@ -11,7 +11,7 @@ const selectCls = 'h-8 max-w-40 rounded-md bg-white/10 px-2 text-[13px] text-whi
  * the dance and the intensity. Pictures can also be dropped on the visualizer.
  */
 export function DancerPanel({ hidden }: { hidden: boolean }) {
-  const { loaded, list, currentId, dance, load, add, remove, select, setDance } = useCharacters();
+  const { loaded, list, currentId, dance, scene, load, add, remove, select, setDance, setScene } = useCharacters();
   const intensity = usePreferences((s) => s.visualizerIntensity);
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -103,6 +103,13 @@ export function DancerPanel({ hidden }: { hidden: boolean }) {
             {list.map((c) => (
               <option key={c.id} value={c.id} className="bg-[#101018]">
                 {c.name}
+              </option>
+            ))}
+          </select>
+          <select aria-label="Scene" value={scene} onChange={(e) => void setScene(e.target.value as DancerScene)} className={selectCls}>
+            {SCENES.map((x) => (
+              <option key={x.id} value={x.id} className="bg-[#101018]">
+                {x.name}
               </option>
             ))}
           </select>

@@ -257,6 +257,7 @@ The *Dancer* style makes a character picture dance to the music on a small neon 
 - The picture is drawn as a bendable grid (WebGL2): the feet stay on the floor, the body leans, the head nods and the top (hair, ears) follows a little late; it squashes on landing and can hop.
 - A beat clock locks onto the beats the analyser finds (tempo from the gaps between them, phase pulled to each beat), so the moves land on the beat; without beats the character calms down to breathing.
 - Dances: *Groove*, *Bounce*, *Headbang*, *Sway*; *Intensity* (0–100 %) scales all motion and glow.
+- Scenes: *Stage* (neon stage with a floor reflection) or *Monitor*: the character dances in a glowing portrait screen seen at an angle by a gently swaying camera; it is cut at the bottom edge and its head and arms reach out over the frame (with a shadow on it), like the "out of the screen" videos. Colours come from the cover.
 
 ## Skins
 

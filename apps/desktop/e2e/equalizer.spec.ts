@@ -313,6 +313,7 @@ test('dancer: add a character, pick a dance and intensity, all remembered', asyn
   await expect(panel).toBeVisible({ timeout: 10_000 });
   await expect(page.getByLabel('Character', { exact: true })).toHaveText(/my dancer/);
   await page.getByLabel('Dance').selectOption('bounce');
+  await page.getByLabel('Scene').selectOption('monitor');
   await page.getByLabel('Visualizer intensity').fill('35');
   // the renderer reports the stage brightness and the tempo it follows
   await expect.poll(() => vis.locator('canvas').getAttribute('data-lum'), { timeout: 10_000 }).not.toBeNull();
@@ -321,6 +322,7 @@ test('dancer: add a character, pick a dance and intensity, all remembered', asyn
   await page.getByRole('button', { name: 'Full screen player' }).click();
   await expect(page.getByTestId('visualizer')).toHaveAttribute('data-style', 'dancer');
   await expect(page.getByLabel('Dance')).toHaveValue('bounce');
+  await expect(page.getByLabel('Scene')).toHaveValue('monitor');
   await expect(page.getByLabel('Visualizer intensity')).toHaveValue('35');
   await page.getByRole('button', { name: 'Remove character' }).click();
   await expect(page.getByText('Add a character')).toBeVisible();

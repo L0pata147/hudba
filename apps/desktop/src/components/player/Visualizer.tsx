@@ -92,7 +92,7 @@ function createRenderer(style: VisualizerStyle, canvas: HTMLCanvasElement, o: Re
         canvas,
         () => {
           const c = useCharacters.getState();
-          return { image: c.image, dance: c.dance };
+          return { image: c.image, dance: c.dance, scene: c.scene };
         },
         o.intensity,
       );
