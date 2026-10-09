@@ -251,8 +251,16 @@ test('visualizer styles: every style draws, menu and arrow keys switch, the choi
   await expect(page.getByRole('menu')).toHaveCount(0);
 
   // Arrows switch styles only in fullscreen (outside they keep seeking).
+  // Like the desktop app (window fullscreen, no element fullscreen): the view must cover the window by itself.
+  await page.evaluate(() => {
+    Element.prototype.requestFullscreen = () => Promise.reject(new Error('no element fullscreen'));
+  });
   await page.keyboard.press('f');
   await expect(vis).toHaveAttribute('data-immersive', 'true');
+  const view = page.viewportSize()!;
+  await expect.poll(async () => (await vis.boundingBox())?.height).toBe(view.height);
+  // nothing of the player is painted over it
+  expect(await page.evaluate(() => !!document.elementFromPoint(innerWidth / 2, innerHeight * 0.75)?.closest('[data-testid=visualizer]'))).toBe(true);
   await page.keyboard.press('ArrowRight');
   await expect(vis).toHaveAttribute('data-style', 'galaxy');
   await page.keyboard.press('ArrowLeft');

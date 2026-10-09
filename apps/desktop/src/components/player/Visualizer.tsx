@@ -378,8 +378,9 @@ export function Visualizer({ song }: { song: Song }) {
       onPointerMove={immersive ? poke : undefined}
       onDoubleClick={() => toggleImmersive()}
       className={clsx(
-        'relative overflow-hidden bg-black select-none',
-        immersive ? 'fixed inset-0 z-[95]' : 'size-full min-h-[320px] rounded-xl',
+        'overflow-hidden bg-black select-none',
+        // only one position class at a time: with both, `relative` wins and the immersive view collapses to 0 px
+        immersive ? 'fixed inset-0 z-[95]' : 'relative size-full min-h-[320px] rounded-xl',
         hidden && 'cursor-none',
       )}
     >

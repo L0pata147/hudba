@@ -113,7 +113,9 @@ export function NowPlaying() {
               onPointerCancel={onPointerUp}
             >
               {visualizer ? (
-                <div className="animate-fade-in size-full max-w-[1200px]">
+                // Fill only backwards: a finished animation that keeps applying would make a stacking
+                // context and trap the visualizer's fullscreen view under the player controls.
+                <div className="size-full max-w-[1200px] animate-[fade-in_0.28s_var(--ease-out-soft)_backwards]">
                   <Visualizer song={song} />
                 </div>
               ) : (
