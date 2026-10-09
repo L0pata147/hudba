@@ -29,6 +29,8 @@ import { createMilkdropRenderer } from './visualizer/milkdrop';
 import { createLiquidRenderer } from './visualizer/liquid';
 import { createLiquidGlRenderer } from './visualizer/liquid-gl';
 import { createAmbientRenderer } from './visualizer/ambient';
+import { createAmbientGlRenderer } from './visualizer/ambient-gl';
+import { createTunnelGlRenderer } from './visualizer/tunnel-gl';
 import { LyricPulse } from './visualizer/LyricPulse';
 import { createDancerRenderer } from './visualizer/dancer';
 import { DancerPanel } from './visualizer/DancerPanel';
@@ -80,9 +82,11 @@ function createRenderer(style: VisualizerStyle, canvas: HTMLCanvasElement, o: Re
     case 'liquid':
       return (o.liquid2d ? null : createLiquidGlRenderer(canvas, o.coverUrl, o.onLiquidFallback)) ?? createLiquidRenderer(canvas, o.coverUrl);
     case 'lyrics':
-      return createAmbientRenderer(canvas, o.backgroundUrl, 0.7);
+      return createAmbientGlRenderer(canvas, o.backgroundUrl, 0.7) ?? createAmbientRenderer(canvas, o.backgroundUrl, 0.7);
     case 'ambient':
-      return createAmbientRenderer(canvas, o.backgroundUrl);
+      return createAmbientGlRenderer(canvas, o.backgroundUrl) ?? createAmbientRenderer(canvas, o.backgroundUrl);
+    case 'tunnel':
+      return createTunnelGlRenderer(canvas) ?? createPathRenderer(canvas, 'tunnel');
     case 'dancer':
       return createDancerRenderer(
         canvas,

@@ -1,6 +1,7 @@
 import { sampleLevel } from '@sonora/core';
 import type { DanceStyle } from '../../../lib/characters';
 import { createDance } from './dance';
+import type { RGB } from '@sonora/ui';
 import type { Renderer, VisFrame } from './types';
 
 const QUAD_VS = `#version 300 es
@@ -15,8 +16,7 @@ uniform vec2 res;
 uniform vec2 feet;     // px, GL coordinates (y up)
 uniform float size;    // character height, px
 uniform float t, bass, kick, high, lean, jump, has;
-const vec3 PINK = vec3(1.0, 0.36, 0.72);
-const vec3 LILAC = vec3(0.6, 0.42, 1.0);
+uniform vec3 PINK, LILAC;   // the cover's two colours, brightened to neon
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -24,19 +24,19 @@ void main() {
   vec2 px = gl_FragCoord.xy;
   vec2 q = (px - feet) / size;                 // character units, 0 at the feet
   float floorY = feet.y;
-  vec3 col = mix(vec3(0.07, 0.03, 0.10), vec3(0.025, 0.01, 0.04), smoothstep(0.0, 1.3, q.y));
+  vec3 col = mix(PINK * 0.07 + LILAC * 0.03 + 0.01, LILAC * 0.025 + 0.008, smoothstep(0.0, 1.3, q.y));
   // two soft lights on the back wall, swinging with the dance
   float l1 = exp(-pow(length((q - vec2(-0.55 + lean * 0.25, 0.75)) * vec2(1.0, 1.4)), 2.0) * 2.2);
   float l2 = exp(-pow(length((q - vec2(0.6 + lean * 0.25, 0.85)) * vec2(1.0, 1.4)), 2.0) * 2.2);
   float glow = 0.28 + bass * 0.45 + kick * 0.25;
-  col += PINK * l1 * glow * 0.55 + LILAC * l2 * glow * 0.5;
+  col += PINK * l1 * glow * 0.75 + LILAC * l2 * glow * 0.65;
   // spotlight cone from above onto the character
   float cone = smoothstep(0.42 + q.y * 0.18, 0.0, abs(q.x - lean * 0.15 * q.y)) * smoothstep(1.9, 0.2, q.y) * step(0.0, q.y);
   col += mix(PINK, vec3(1.0), 0.35) * cone * (0.05 + bass * 0.07 + kick * 0.05) * has;
   // floor
   if (px.y < floorY) {
     float d = (floorY - px.y) / size;
-    col = mix(vec3(0.09, 0.04, 0.10), vec3(0.03, 0.015, 0.035), smoothstep(0.0, 0.5, d));
+    col = mix(PINK * 0.06 + LILAC * 0.04 + 0.015, LILAC * 0.02 + 0.01, smoothstep(0.0, 0.5, d));
     // lit circle under the dancer, pulsing with the bass
     float ring = exp(-pow(length(vec2(q.x * 0.75, d * 2.6)), 2.0) * 4.0);
     col += PINK * ring * (0.25 + bass * 0.5 + kick * 0.3);
@@ -102,7 +102,7 @@ in float vy;
 out vec4 o;
 uniform sampler2D tex;
 uniform float mode, glow, kick;  // mode 0 = body, 1 = glow halo, 2 = floor reflection
-const vec3 PINK = vec3(1.0, 0.36, 0.72);
+uniform vec3 PINK;               // the cover's main colour
 void main() {
   if (mode > 1.5) {
     vec4 c = texture(tex, uv);
@@ -147,6 +147,13 @@ function program(gl: WebGL2RenderingContext, vs: string, fs: string, attr: strin
 
 const uniforms = (gl: WebGL2RenderingContext, p: WebGLProgram, names: string[]) => Object.fromEntries(names.map((n) => [n, gl.getUniformLocation(p, n)]));
 
+/** A palette colour as a bright neon light: full brightness, a little extra saturation, 0…1. */
+export function neon(c: RGB): [number, number, number] {
+  const max = Math.max(c.r, c.g, c.b, 1);
+  const mean = (c.r + c.g + c.b) / 3;
+  return [c.r, c.g, c.b].map((v) => Math.min(1, Math.max(0, (v + (v - mean) * 0.35) / max))) as [number, number, number];
+}
+
 export interface DancerSource {
   image: HTMLImageElement | null;
   dance: DanceStyle;
@@ -163,8 +170,8 @@ export function createDancerRenderer(canvas: HTMLCanvasElement, getSource: () =>
   const stage = program(gl, QUAD_VS, STAGE_FS, 'p');
   const body = program(gl, CHAR_VS, CHAR_FS, 'g');
   if (!stage || !body) return null;
-  const SU = uniforms(gl, stage, ['res', 'feet', 'size', 't', 'bass', 'kick', 'high', 'lean', 'jump', 'has']);
-  const CU = uniforms(gl, body, ['res', 'feet', 'dims', 'lean', 'lag', 'jump', 'squash', 'nod', 'tilt', 'kick', 't', 'flip', 'grow', 'tex', 'mode', 'glow']);
+  const SU = uniforms(gl, stage, ['res', 'feet', 'size', 't', 'bass', 'kick', 'high', 'lean', 'jump', 'has', 'PINK', 'LILAC']);
+  const CU = uniforms(gl, body, ['res', 'feet', 'dims', 'lean', 'lag', 'jump', 'squash', 'nod', 'tilt', 'kick', 't', 'flip', 'grow', 'tex', 'mode', 'glow', 'PINK']);
 
   const quad = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, quad);
@@ -239,6 +246,10 @@ export function createDancerRenderer(canvas: HTMLCanvasElement, getSource: () =>
       gl.uniform1f(SU.lean!, pose.lean);
       gl.uniform1f(SU.jump!, pose.jump);
       gl.uniform1f(SU.has!, has);
+      const c1 = neon(f.palette[0]);
+      const c2 = neon(f.palette[1]);
+      gl.uniform3f(SU.PINK!, ...c1);
+      gl.uniform3f(SU.LILAC!, ...c2);
       gl.bindBuffer(gl.ARRAY_BUFFER, quad);
       gl.enableVertexAttribArray(0);
       gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
@@ -261,6 +272,7 @@ export function createDancerRenderer(canvas: HTMLCanvasElement, getSource: () =>
         gl.uniform1f(CU.kick!, kick * intensity);
         gl.uniform1f(CU.t!, f.t);
         gl.uniform1f(CU.glow!, glow);
+        gl.uniform3f(CU.PINK!, ...c1);
         gl.bindBuffer(gl.ARRAY_BUFFER, grid);
         gl.enableVertexAttribArray(0);
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);

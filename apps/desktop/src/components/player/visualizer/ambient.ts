@@ -4,7 +4,7 @@ import type { Renderer, VisFrame } from './types';
 const mix = (a: RGB, b: RGB): RGB => ({ r: (a.r + b.r) >> 1, g: (a.g + b.g) >> 1, b: (a.b + b.b) >> 1 });
 
 /** Loads an image, with CORS when the server allows it (keeps the canvas readable). */
-function imageLoader(onReady: (img: HTMLImageElement) => void) {
+export function imageLoader(onReady: (img: HTMLImageElement) => void) {
   let url: string | undefined;
   return (next: string | undefined) => {
     if (next === url) return;

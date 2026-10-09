@@ -234,12 +234,12 @@ Full-screen player → waveform icon or `V`. Eleven styles (ten on mobile), swit
 | Mirror horizon | Bars to the left/right of the cover with a glowing spectrum outline, a light horizon and motes rising from it (bursts on beats) |
 | Oscilloscope | The waveform as a phosphor beam with afterglow, a colour fringe that widens on beats, a lit CRT screen with grid and scanlines |
 | Pulsar terrain | Synthwave: a striped sun and stars over *Unknown Pleasures*-style spectrum ridges scrolling away in perspective |
-| Warp tunnel | A twisting wireframe tube of hexagons deformed by the spectrum, star streaks, a glowing core and shockwaves on beats |
+| Warp tunnel | Desktop (WebGL): flight through a twisting hexagonal tube whose wall panels light up with the spectrum, streaks rushing past and a ring of light flying at you on every beat. Mobile: wireframe tube of hexagons, star streaks and shockwaves |
 | Galaxy | A tilted, slowly wobbling spiral of thousands of stars (hundreds on mobile) with a glowing core, nebula dust, a starfield and a ring of light on beats |
 | Milkdrop *(desktop)* | WebGL2 feedback with five warps (zoom/spin, ripple, 4- and 6-way kaleidoscope, tunnel) cross-fading every 16 s, slow hue drift, orbiting light ribbons, beat bursts and bloom |
 | Liquid cover | The cover as a liquid surface (WebGL2 shader on desktop): flowing distortion, ripples from the centre on beats, pixel snaps, colour split, a sheen and a halo. Mobile: rippling strips, sheen, beat ring and pixel mosaic |
 | Lyric pulse | Karaoke: the current synced line in big words that light up as they are sung (timed between lines by word length), each lifted by its part of the spectrum, over the flowing cover |
-| Ambient | The cover four times, huge, blurred and slowly turning (like Apple Music's background), breathing with the bass |
+| Ambient | Desktop (WebGL): the cover's colours flowing like liquid light (domain-warped noise), bright folds swelling with the bass, aurora ribbons and drifting bokeh. Mobile: the cover huge, blurred and slowly turning |
 
 Desktop path styles are drawn into an offscreen layer that keeps motion trails, with static parts under it and a quarter-resolution blurred copy added on top as **bloom**; if frames take too long (weak or no GPU) the bloom switches itself off.
 
