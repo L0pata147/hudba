@@ -28,6 +28,7 @@ import { createPathRenderer } from './visualizer/paths';
 import { createMilkdropRenderer } from './visualizer/milkdrop';
 import { createLiquidRenderer } from './visualizer/liquid';
 import { createLiquidGlRenderer } from './visualizer/liquid-gl';
+import { createLiquid3dRenderer } from './visualizer/liquid3d';
 import { createAmbientRenderer } from './visualizer/ambient';
 import { createAmbientGlRenderer } from './visualizer/ambient-gl';
 import { createTunnelGlRenderer } from './visualizer/tunnel-gl';
@@ -80,7 +81,7 @@ function createRenderer(style: VisualizerStyle, canvas: HTMLCanvasElement, o: Re
     case 'milkdrop':
       return createMilkdropRenderer(canvas);
     case 'liquid':
-      return (o.liquid2d ? null : createLiquidGlRenderer(canvas, o.coverUrl, o.onLiquidFallback)) ?? createLiquidRenderer(canvas, o.coverUrl);
+      return createLiquid3dRenderer(canvas, o.coverUrl) ?? (o.liquid2d ? null : createLiquidGlRenderer(canvas, o.coverUrl, o.onLiquidFallback)) ?? createLiquidRenderer(canvas, o.coverUrl);
     case 'lyrics':
       return createAmbientGlRenderer(canvas, o.backgroundUrl, 0.7) ?? createAmbientRenderer(canvas, o.backgroundUrl, 0.7);
     case 'ambient':
