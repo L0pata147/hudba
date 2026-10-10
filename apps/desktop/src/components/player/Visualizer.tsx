@@ -105,7 +105,7 @@ function createRenderer(style: VisualizerStyle, canvas: HTMLCanvasElement, o: Re
     case 'vinyl':
       return createVinylRenderer(canvas, o.coverUrl);
     case 'fireworks':
-      return createFireworksRenderer(canvas);
+      return createFireworksRenderer(canvas, o.coverUrl);
     case 'rain':
       return createRainRenderer(canvas, o.backgroundUrl);
     case 'kaleido':

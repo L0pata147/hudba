@@ -1,8 +1,9 @@
 import { sampleLevel } from '@sonora/core';
 import type { RGB } from '@sonora/ui';
+import { imageLoader } from './ambient';
 import type { Renderer, VisFrame } from './types';
 
-type Kind = 'peony' | 'chrysanthemum' | 'ring' | 'double' | 'willow' | 'crossette' | 'palm' | 'glitter';
+type Kind = 'peony' | 'chrysanthemum' | 'ring' | 'double' | 'willow' | 'crossette' | 'palm' | 'glitter' | 'picture';
 
 interface Rocket {
   x: number;
@@ -40,6 +41,15 @@ interface Spark {
 interface Ember {
   x: number;
   y: number;
+  vy: number;
+  life: number;
+  max: number;
+  col: string;
+}
+interface Jet {
+  x: number;
+  y: number;
+  vx: number;
   vy: number;
   life: number;
   max: number;
@@ -156,11 +166,13 @@ function buildCity(W: number, H: number, HZ: number, rnd: () => number) {
  * cover's colours — more with more bass — that burst as peonies, chrysanthemums
  * with glittering tails, tilted rings, two-colour doubles, drooping golden
  * willows, palms, crossettes that split and strobing glitter for the treble;
- * every 32 beats a finale. The bursts light the sky, the drifting smoke and the
- * rooftops, glow (a small bloom) and are mirrored in the rippling water, where
- * a few windows of the city flicker with the spectrum.
+ * every 32 beats a finale, and now and then a burst whose sparks hang in the
+ * sky as the cover itself. Fountains along the waterfront spray as high as
+ * their band of the spectrum. The bursts light the sky, the drifting smoke and
+ * the rooftops, glow (a small bloom) and are mirrored in the rippling water,
+ * where a few windows of the city flicker with the spectrum.
  */
-export function createFireworksRenderer(canvas: HTMLCanvasElement): Renderer | null {
+export function createFireworksRenderer(canvas: HTMLCanvasElement, getUrl: () => string | undefined = () => undefined): Renderer | null {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
   const rockets: Rocket[] = [];
@@ -184,6 +196,36 @@ export function createFireworksRenderer(canvas: HTMLCanvasElement): Renderer | n
   let bloom: ReturnType<typeof layer>[] = [];
   let city = buildCity(1, 1, 1, rnd);
   let stars: number[] = [];
+  const fountains = new Float32Array(12);
+  let jets: Jet[] = [];
+  let front = layer(1, 1);
+  let frontGlow = layer(1, 1);
+
+  // the cover as a grid of coloured sparks for the picture burst (only when the image is readable)
+  const PIC = 40;
+  let picture: { x: number; y: number; c: RGB }[] | null = null;
+  const loadCover = imageLoader((img) => {
+    try {
+      const c = layer(PIC, PIC);
+      c.x.drawImage(img, 0, 0, PIC, PIC);
+      const d = c.x.getImageData(0, 0, PIC, PIC).data;
+      const px: { x: number; y: number; c: RGB }[] = [];
+      for (let j = 0; j < PIC; j++) {
+        for (let i = 0; i < PIC; i++) {
+          const k = (j * PIC + i) * 4;
+          const col = { r: d[k]!, g: d[k + 1]!, b: d[k + 2]! };
+          const x = i / (PIC - 1) - 0.5;
+          const y = j / (PIC - 1) - 0.5;
+          // a round medallion of the cover; very dark pixels stay out
+          if (col.r + col.g + col.b < 40 || x * x + y * y > 0.25) continue;
+          px.push({ x, y, c: col });
+        }
+      }
+      picture = px.length > 80 ? px : null;
+    } catch {
+      picture = null;
+    }
+  });
 
   const resize = (W: number, H: number) => {
     cw = W;
@@ -193,6 +235,9 @@ export function createFireworksRenderer(canvas: HTMLCanvasElement): Renderer | n
     scene = layer(W, HZ);
     bloom = [2, 4, 8, 16].map((d) => layer(W / d, HZ / d));
     city = buildCity(W, H, HZ, rnd);
+    front = layer(W, HZ);
+    frontGlow = layer(W / 6, HZ / 6);
+    jets = [];
     stars = [];
     const n = Math.round((W * H) / 9000);
     for (let i = 0; i < n; i++) stars.push(rnd() * W, Math.pow(rnd(), 1.4) * HZ * 0.8, 0.5 + rnd() * 1.2, rnd() * 6.3);
@@ -215,9 +260,10 @@ export function createFireworksRenderer(canvas: HTMLCanvasElement): Renderer | n
     const swap = rnd() < 0.5;
     const a = vivid(palette[swap ? 1 : 0]);
     const b = vivid(palette[swap ? 0 : 1]);
-    const apex = H * (0.08 + rnd() * 0.32);
+    const pic = kind === 'picture';
+    const apex = pic ? H * (0.26 + rnd() * 0.05) : H * (0.08 + rnd() * 0.32);
     rockets.push({
-      x: W * (0.1 + rnd() * 0.8),
+      x: pic ? W * (0.35 + rnd() * 0.3) : W * (0.1 + rnd() * 0.8),
       y: HZ,
       vx: (rnd() - 0.5) * H * 0.06,
       vy: -Math.sqrt(2 * H * 0.175 * (HZ - apex)) * 1.03,
@@ -314,6 +360,20 @@ export function createFireworksRenderer(canvas: HTMLCanvasElement): Renderer | n
         }
         break;
       }
+      case 'picture': {
+        // each spark flies to its pixel of the cover and hangs there, then sinks and fades
+        if (!picture) {
+          ball(130, S, r.b, 1.9);
+          break;
+        }
+        const size = H * 0.42;
+        const k = -Math.log(0.04);
+        for (const px of picture) {
+          const j = (rnd() - 0.5) * 0.004 * size;
+          spark(r.x, r.y, (px.x * size + j) * k, (px.y * size + j) * k, px.c, 3.4 + rnd() * 0.5, { drag: 0.04, grav: H * 0.01, w: 1.4, hot: rgb(mixc(px.c, WHITE, 0.5)) });
+        }
+        break;
+      }
       case 'glitter':
         ball(170, S * 0.85, mixc(WHITE, r.a, 0.25), 2.0, { strobe: true, w: 0.8 });
         break;
@@ -331,6 +391,7 @@ export function createFireworksRenderer(canvas: HTMLCanvasElement): Renderer | n
       const W = canvas.width;
       const H = canvas.height;
       if (W !== cw || H !== ch) resize(W, H);
+      loadCover(getUrl());
       const dt = Math.min(0.05, f.dt) * (f.reduced ? 0.5 : 1);
       clock += dt;
       const kick = f.reduced ? 0 : f.kick;
@@ -344,6 +405,8 @@ export function createFireworksRenderer(canvas: HTMLCanvasElement): Renderer | n
         for (let i = 0; i < count; i++) launch(W, H, f.bass, f.palette, pick(f.bass, high));
         // the finale: a volley every 32 beats when the music is loud
         if (beats % 32 === 0 && f.bass > 0.6) for (let i = 0; i < 6; i++) queue.push({ at: clock + 0.12 + i * 0.13, power: 1, kind: i === 5 ? 'double' : undefined });
+        // the cover in the sky, halfway between finales
+        if (beats % 32 === 16 && picture) queue.push({ at: clock + 0.05, power: 1, kind: 'picture' });
         sinceLaunch = 0;
       } else if (sinceLaunch > 0.9) {
         launch(W, H, 0.3, f.palette, rnd() < 0.3 ? 'willow' : 'peony');
@@ -387,6 +450,53 @@ export function createFireworksRenderer(canvas: HTMLCanvasElement): Renderer | n
           rockets.splice(i, 1);
         }
       }
+
+      // fountains along the waterfront, each spraying as high as its band of the spectrum
+      const fx = front.x;
+      fx.globalCompositeOperation = 'destination-out';
+      fx.globalAlpha = 1;
+      fx.fillStyle = `rgba(0,0,0,${(1 - Math.pow(0.7, dt * 60)).toFixed(3)})`;
+      fx.fillRect(0, 0, W, HZ);
+      fx.globalCompositeOperation = 'lighter';
+      fx.lineCap = 'round';
+      for (let i = 0; i < fountains.length; i++) {
+        const u = i / (fountains.length - 1);
+        const v = sampleLevel(f.levels, 0.05 + u * 0.85) * (f.reduced ? 0.5 : 1);
+        fountains[i]! += Math.max(0, v - 0.12) ** 2 * 260 * dt;
+        const x0 = W * (0.06 + u * 0.88);
+        const col = rgb(mixc(mixc(GOLD, WHITE, 0.3), vivid(f.palette[i % 2]!), 0.35));
+        while (fountains[i]! >= 1) {
+          fountains[i]! -= 1;
+          jets.push({ x: x0 + (rnd() - 0.5) * dot * 3, y: HZ - 1, vx: (rnd() - 0.5) * H * 0.07, vy: -H * (0.2 + v * 0.32) * (0.85 + rnd() * 0.3), life: 0, max: 0.9 + rnd() * 0.5, col });
+        }
+      }
+      let lastJet = '';
+      let nj = 0;
+      for (const j of jets) {
+        j.life += dt;
+        if (j.life > j.max) continue;
+        jets[nj++] = j;
+        const px = j.x;
+        const py = j.y;
+        const dr = Math.pow(0.6, dt);
+        j.vx *= dr;
+        j.vy = j.vy * dr + G * 0.9 * dt;
+        j.x += j.vx * dt;
+        j.y += j.vy * dt;
+        if (j.col !== lastJet) {
+          fx.strokeStyle = j.col;
+          lastJet = j.col;
+        }
+        fx.globalAlpha = Math.min(1, (1 - j.life / j.max) * 1.5);
+        fx.lineWidth = dot * 0.8;
+        fx.beginPath();
+        fx.moveTo(px, py);
+        fx.lineTo(j.x, j.y);
+        fx.stroke();
+      }
+      jets.length = nj;
+      if (jets.length > 3000) jets.splice(0, jets.length - 3000);
+      fx.globalAlpha = 1;
 
       let last = '';
       let n = 0;
@@ -529,6 +639,13 @@ export function createFireworksRenderer(canvas: HTMLCanvasElement): Renderer | n
       sx.globalCompositeOperation = 'source-over';
       sx.drawImage(city.canvas, 0, HZ - city.h);
       sx.globalCompositeOperation = 'lighter';
+      // the fountains in front of the city, with a soft glow of their own
+      frontGlow.x.globalCompositeOperation = 'copy';
+      frontGlow.x.drawImage(front.c, 0, 0, frontGlow.c.width, frontGlow.c.height);
+      sx.drawImage(front.c, 0, 0);
+      sx.globalAlpha = 0.7;
+      sx.drawImage(frontGlow.c, 0, 0, W, HZ);
+      sx.globalAlpha = 1;
       for (const w of city.windows) {
         const v = Math.min(1, Math.max(0, sampleLevel(f.levels, w.band) * 1.4 - 0.15));
         if (v < 0.02) continue;

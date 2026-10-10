@@ -9,7 +9,8 @@ type Url = () => string | undefined;
 /* ------------------------------------------------------------------ */
 
 const BLACKHOLE = `${SCENE_HEADER}
-uniform float spin, elev;
+uniform float spin, focal, flare, flareAge, flareAng, gw;
+uniform vec3 camPos;
 // Light paths are integrated around the hole (pseudo-Newtonian null geodesics, horizon radius 1),
 // so the Einstein ring, the far side of the disk bent over the top and under the bottom and the
 // photon ring all come out of the geometry.
@@ -27,6 +28,10 @@ vec3 skyAt(vec3 d) {
   }
   return c;
 }
+// noise round the disk that joins up where the angle wraps (u = 0…1 round the circle, k = cells per turn)
+float fbmA(float x, float u, float k) {
+  return mix(fbm(vec2(x, u * k)), fbm(vec2(x, (u - 1.0) * k)), u);
+}
 vec3 diskColor(vec3 x, vec3 rd, out float alpha) {
   float r = length(x.xz);
   float rin = 2.6;
@@ -36,8 +41,9 @@ vec3 diskColor(vec3 x, vec3 rd, out float alpha) {
   float omega = 2.2 * pow(r, -1.5);                                   // inner parts orbit faster
   float a = ang + spin * omega * 6.0;
   float lr = log(r);
-  float turb = fbm(vec2(lr * 6.0, a * 2.0)) * 0.7 + fbm(vec2(lr * 18.0 + 4.0, a * 6.0)) * 0.5;
-  turb = pow(turb, 1.6) * 1.8 * (0.8 + 0.4 * fbm(vec2(lr * 60.0, a * 20.0)));   // fine filaments
+  float u = fract(a / (2.0 * PI));
+  float turb = fbmA(lr * 6.0, u, 12.566) * 0.7 + fbmA(lr * 18.0 + 4.0, u, 37.7) * 0.5;
+  turb = pow(turb, 1.6) * 1.8 * (0.8 + 0.4 * fbmA(lr * 60.0, u, 125.66));   // fine filaments
   float lanes = 0.75 + 0.25 * sin(lr * 23.0 + turb * 9.0 + a);
   float heat = pow(rin / r, 0.9);
   float edgeIn = smoothstep(rin, rin * 1.12, r);
@@ -50,19 +56,26 @@ vec3 diskColor(vec3 x, vec3 rd, out float alpha) {
   float beam = g * g * g;
   vec3 hot = mix(vec3(1.0, 0.96, 0.9), vec3(0.8, 0.9, 1.0), clamp(g - 1.0, 0.0, 1.0));
   vec3 col = mix(c1 * 0.9, mix(c2, hot, smoothstep(0.5, 0.95, heat)), smoothstep(0.15, 0.7, heat));
-  float band = level(fract(a / (2.0 * PI)) * 0.6 + 0.05);           // hot clumps flicker with the spectrum
+  float band = level(abs(u * 2.0 - 1.0) * 0.6 + 0.05);              // hot clumps flicker with the spectrum
   float glow = (0.7 + bass * 1.3 + kick * 0.8 * heat) * (0.75 + band * 0.7);
-  alpha = clamp(dens * 1.4, 0.0, 1.0);
-  return col * dens * beam * glow * (0.35 + heat * 2.4);
+  // a flare: a hot spot orbiting with the gas, sheared into an arc as the inner parts outrun the outer
+  float rs = 3.6;
+  float da = mod(a - (flareAng + spin * 2.2 * pow(rs, -1.5) * 6.0) + PI, 2.0 * PI) - PI;
+  float spot = flare * exp(-(r - rs) * (r - rs) * 3.0 - da * da * rs * rs * 0.6 / (1.0 + flareAge * 4.0));
+  alpha = clamp(dens * 1.4 + spot, 0.0, 1.0);
+  return col * dens * beam * glow * (0.35 + heat * 2.4) + mix(hot, c2, 0.3) * spot * beam * 4.0;
 }
 void main() {
   vec2 p = (gl_FragCoord.xy - 0.5 * res) / res.y;
-  float dist = 31.0 - bass * 0.8;
-  vec3 ro = vec3(sin(t * 0.03) * 2.0, sin(elev) * dist, -cos(elev) * dist);
+  // a gravitational wave rippling out across the view
+  float gr = length(p);
+  float front = gr - gw * 0.9;
+  p += p / max(gr, 1e-3) * sin(front * 45.0) * 0.006 * exp(-front * front * 30.0) * exp(-gw * 1.2);
+  vec3 ro = camPos * (1.0 - bass * 0.025);
   vec3 fwd = normalize(-ro);
   vec3 right = normalize(cross(fwd, vec3(0.0, 1.0, 0.0)));
   vec3 up = cross(right, fwd);
-  vec3 rd = normalize(fwd * 1.9 + right * p.x + up * p.y);
+  vec3 rd = normalize(fwd * focal + right * p.x + up * p.y);
   vec3 pos = ro;
   vec3 vel = rd;
   float h2 = dot(cross(pos, vel), cross(pos, vel));
@@ -101,20 +114,74 @@ void main() {
   o = vec4(aces(col * 1.15), 1.0);
 }`;
 
+/** Camera positions round the hole: azimuth, elevation, distance, lens. */
+const HOLE_SHOTS = [
+  [0, 0.1, 31, 1.9],      // edge-on, the classic view
+  [0.8, 0.42, 26, 1.8],   // from above the disk: an ellipse with its far side lensed up
+  [-0.5, 0.05, 17, 2.2],  // close, just above the plane: one huge bent arc
+  [2.2, -0.2, 28, 1.9],   // from below
+  [0.3, 1.25, 30, 1.8],   // looking down on the whole disk
+  [-1.6, 0.22, 21, 2],
+] as const;
+
 export function createBlackHoleRenderer(canvas: HTMLCanvasElement, url: Url): Renderer | null {
   let spin = 0;
+  const edge = beatEdge();
+  let beats = 0;
+  let shot = 0;
+  let since = 0;
+  let from: number[] = [...HOLE_SHOTS[0]];
+  let cur: number[] = [...HOLE_SHOTS[0]];
+  let flareAge = 99;
+  let flareAng = 0;
+  let gw = 99;
   return createShaderScene(
     canvas,
     {
       name: 'blackhole',
       fs: BLACKHOLE,
-      uniforms: ['spin', 'elev'],
+      uniforms: ['spin', 'focal', 'camPos', 'flare', 'flareAge', 'flareAng', 'gw'],
       scale: 0.65,
+      post: { bloom: 1, threshold: 0.55, grain: 0.02 },
       update: (gl, U, f) => {
         spin += f.dt * (0.35 + f.bass * 1.2) * (f.reduced ? 0.3 : 1);
+        since += f.dt;
+        flareAge += f.dt;
+        gw += f.dt;
+        if (edge(f.kick) && !f.reduced) {
+          beats++;
+          // a flare on a heavy beat now and then, a gravitational wave every 16 beats
+          if (f.bass > 0.6 && flareAge > 5) {
+            flareAge = 0;
+            flareAng = Math.random() * Math.PI * 2;
+          }
+          if (beats % 16 === 0 && f.bass > 0.4) gw = 0;
+          // a new shot every 16 beats or so, at least 12 s apart
+          if (beats % 16 === 8 && since > 12) {
+            from = cur;
+            shot = (shot + 1) % HOLE_SHOTS.length;
+            since = 0;
+          }
+        }
+        if (!f.reduced && since > 30) {
+          from = cur;
+          shot = (shot + 1) % HOLE_SHOTS.length;
+          since = 0;
+        }
+        const to = HOLE_SHOTS[f.reduced ? 0 : shot]!;
+        const k = f.reduced ? 1 : Math.min(1, since / 5);
+        const e = k * k * k * (k * (k * 6 - 15) + 10);
+        cur = to.map((v, i) => from[i]! + (v - from[i]!) * e);
+        const az = cur[0]! + (f.reduced ? 0 : Math.sin(f.t * 0.03) * 0.08);
+        const el = cur[1]! + (f.reduced ? 0 : Math.sin(f.t * 0.05) * 0.03);
+        const d = cur[2]!;
+        gl.uniform3f(U.camPos!, Math.sin(az) * Math.cos(el) * d, Math.sin(el) * d, -Math.cos(az) * Math.cos(el) * d);
+        gl.uniform1f(U.focal!, cur[3]!);
         gl.uniform1f(U.spin!, spin);
-        // a slow nod of the camera around the plane of the disk
-        gl.uniform1f(U.elev!, 0.13 + Math.sin(f.t * 0.05) * 0.05 * (f.reduced ? 0 : 1));
+        gl.uniform1f(U.flare!, flareAge < 8 ? Math.min(1, flareAge * 6) * Math.exp(-flareAge * 0.45) : 0);
+        gl.uniform1f(U.flareAge!, flareAge);
+        gl.uniform1f(U.flareAng!, flareAng);
+        gl.uniform1f(U.gw!, gw);
       },
     },
     url,
@@ -126,7 +193,7 @@ export function createBlackHoleRenderer(canvas: HTMLCanvasElement, url: Url): Re
 /* ------------------------------------------------------------------ */
 
 const DRIVE = `${SCENE_HEADER}
-uniform float travel, sway;
+uniform float travel, sway, bend, shift, pulse;
 const float HOR = -0.05;
 const float CAMH = 0.2;
 const float RW = 0.95;
@@ -181,7 +248,7 @@ vec3 skyView(vec2 p) {
   float sy = p.y - HOR;
   vec3 col = mix(PINK() * 0.55 + vec3(0.18, 0.02, 0.1), vec3(0.02, 0.0, 0.06), smoothstep(0.0, 0.5, sy));
   col += vec3(0.6, 0.1, 0.5) * exp(-sy * 12.0) * 0.25;
-  vec2 sg = p * 130.0;
+  vec2 sg = vec2(p.x + shift, p.y) * 130.0;
   float st = step(0.993, hash(floor(sg))) * smoothstep(0.4, 0.0, length(fract(sg) - 0.5));
   col += vec3(st) * smoothstep(0.1, 0.3, sy) * (0.5 + 0.5 * sin(t * 3.0 + hash(floor(sg)) * 50.0)) * (0.6 + high);
   // shooting star every few seconds
@@ -195,7 +262,7 @@ vec3 skyView(vec2 p) {
     col += vec3(1.0, 0.9, 1.0) * smoothstep(0.004, 0.0, tail) * (1.0 - sa);
   }
   // the sun: yellow to hot pink, striped at the bottom, the stripes sliding down
-  vec2 sp = p - vec2(0.0, HOR + 0.27);
+  vec2 sp = p - vec2(-shift * 0.3, HOR + 0.27);
   float sr = 0.23 * (1.0 + bass * 0.04 + kick * 0.03);
   float sd = length(sp);
   float rel = (sp.y + sr) / (2.0 * sr);
@@ -204,9 +271,16 @@ vec3 skyView(vec2 p) {
   vec3 sunCol = mix(vec3(1.0, 0.1, 0.55), vec3(1.0, 0.9, 0.3), smoothstep(0.1, 0.9, rel));
   col += PINK() * exp(-max(sd - sr, 0.0) * 8.0) * (0.35 + bass * 0.45);
   col = mix(col, sunCol * 1.15, sun);
+  // long thin clouds lit from below, drifting across the sun
+  if (sy > 0.04 && sy < 0.42) {
+    float cl = fbm(vec2((p.x + shift * 0.6) * 1.5 + t * 0.01, sy * 18.0));
+    float cm = smoothstep(0.56, 0.76, cl) * smoothstep(0.04, 0.1, sy) * smoothstep(0.42, 0.25, sy);
+    vec3 cc = mix(PINK() * 0.35 + vec3(0.06, 0.0, 0.08), vec3(1.0, 0.55, 0.45), exp(-length(sp) * 5.0)) * 0.7;
+    col = mix(col, cc, cm * 0.6);
+  }
   // wireframe mountains
-  float mx = p.x * 2.6;
-  float m = HOR + 0.03 + (abs(fract(mx * 0.5) - 0.5) * 0.22 + fbm(vec2(mx, 2.0)) * 0.05) * (0.55 + 0.45 * smoothstep(0.1, 0.8, abs(p.x)));
+  float mx = (p.x + shift) * 2.6;
+  float m = HOR + 0.03 + (abs(fract(mx * 0.5) - 0.5) * 0.22 + fbm(vec2(mx, 2.0)) * 0.05) * (0.55 + 0.45 * smoothstep(0.1, 0.8, abs(p.x + shift)));
   if (p.y < m) {
     col = mix(vec3(0.03, 0.0, 0.06), PINK() * 0.12, smoothstep(HOR, m, p.y));
     float contour = gridLine((m - p.y) * 45.0, 1.0) + gridLine(mx * 6.0, 1.0) * 0.6;
@@ -215,12 +289,12 @@ vec3 skyView(vec2 p) {
   }
   // the skyline: every building is a band of the spectrum, bass in the middle
   float bw = 0.026;
-  float bi = floor(p.x / bw);
+  float bi = floor((p.x + shift) / bw);
   float band = clamp(abs((bi + 0.5) * bw) / 0.9, 0.0, 1.0);
   float bh = HOR + 0.012 + hash1(bi) * 0.025 + level(band) * 0.13;
-  if (p.y < bh && abs(p.x) < 0.95) {
+  if (p.y < bh && abs(p.x + shift) < 1.6) {
     col = vec3(0.025, 0.0, 0.05);
-    vec2 wg = vec2(p.x / bw * 4.0, (p.y - HOR) * 95.0);
+    vec2 wg = vec2((p.x + shift) / bw * 4.0, (p.y - HOR) * 95.0);
     vec2 wv = fract(wg);
     float win = step(0.3, wv.x) * step(wv.x, 0.75) * step(0.35, wv.y) * step(hash(floor(wg)), 0.3 + level(band) * 0.6);
     col += mix(CYAN(), PINK(), hash1(bi * 3.1)) * win;
@@ -229,67 +303,110 @@ vec3 skyView(vec2 p) {
   return col;
 }
 
+// the road bends: at depth z its centre is shifted sideways by bend·z²
+float roadX(float z) { return bend * z * z; }
+
+/** The ground: the neon grid and the wet road mirroring the sky; a wave of light runs along it on beats. */
+vec3 ground(vec2 p) {
+  float d = HOR - p.y;
+  float z = CAMH / d;
+  float x = p.x * z - roadX(z);
+  float fade = exp(-z * 0.05);
+  float wave = exp(-pow(z - pulse * 30.0 - 1.0, 2.0) * 0.12) * exp(-pulse * 1.6);
+  vec2 g = vec2(x * 0.9, z * 0.9 + travel);
+  float lines = max(gridLine(g.x, 1.3), gridLine(g.y, 1.3));
+  vec3 col = vec3(0.015, 0.0, 0.035) + PINK() * lines * fade * (0.65 + bass * 0.9 + wave * 2.5);
+  col += PINK() * exp(-d * 25.0) * 0.4;
+  if (abs(x) < RW) {
+    vec3 refl = skyView(vec2(p.x + sin(z * 3.0 + travel) * 0.002, HOR + d * 0.85));
+    col = vec3(0.02, 0.012, 0.035) + refl * 0.45 * (0.5 + 0.5 * fade) * smoothstep(0.0, 0.05, d);
+    col += CYAN() * smoothstep(0.03, 0.0, abs(abs(x) - (RW - 0.04)) - 0.012) * fade * (1.2 + wave * 2.0);
+    float dash = step(abs(x), 0.016) * step(fract((z + travel) * 0.45), 0.42);
+    col += vec3(1.0, 0.95, 0.8) * dash * fade * 0.5;
+  }
+  return col;
+}
+
+/** A light pole at depth zi on side sd (-1 left, 1 right); the lamps flash on beats. */
+void pole(vec2 p, float zi, float sd, float k, inout vec3 col) {
+  float sx = (roadX(zi) + sd * (RW + 0.55)) / zi;
+  float base = HOR - CAMH / zi;
+  float top = base + 1.1 / zi;
+  if (abs(p.x - sx) < 0.01 / zi + 0.002 && p.y > base && p.y < top) col = vec3(0.02, 0.01, 0.04);
+  vec2 lamp = vec2(sx - sd * 0.12 / zi, top);
+  if (seg(p, vec2(sx, top), lamp, 0.004 / zi + 0.001) < 0.0) col = vec3(0.02, 0.01, 0.04);
+  float ld = length(p - lamp) * zi;
+  vec3 lc = mod(k, 2.0) < 0.5 ? PINK() : CYAN();
+  col += lc * (exp(-ld * 60.0) * 1.2 + exp(-ld * 9.0) * 0.15) * (0.7 + kick * 0.9) * exp(-zi * 0.04);
+}
+
+/** A billboard by the road showing the cover, in a neon frame. */
+void billboard(vec2 p, float zb, float sd, inout vec3 col) {
+  if (zb < 0.7) return;
+  float s = 1.4 / zb;
+  float base = HOR - CAMH / zb;
+  vec2 c = vec2((roadX(zb) + sd * (RW + 1.7)) / zb, base + 0.75 / zb + s * 0.5);
+  vec2 q = (p - c) / s;
+  float post = min(abs(p.x - c.x - s * 0.3), abs(p.x - c.x + s * 0.3));
+  if (p.y > base && p.y < c.y && post < 0.025 / zb + 0.001) col = vec3(0.02, 0.01, 0.04);
+  float fade = exp(-zb * 0.035);
+  float frame = max(abs(q.x), abs(q.y));
+  if (frame < 0.5) {
+    float lod = hasCover > 0.5 ? log2(max(float(textureSize(cover, 0).x) / (s * res.y), 1.0)) : 0.0;
+    col = coverAt(q + 0.5, lod) * (0.7 + bass * 0.4) * fade + vec3(0.01, 0.0, 0.02);
+    col *= 0.9 + 0.1 * sin(gl_FragCoord.y * 2.0);
+  }
+  float dd = abs(frame - 0.52) * s;
+  col += mix(CYAN(), PINK(), step(0.0, sd)) * (exp(-dd * 400.0) * 1.3 + exp(-dd * 40.0) * 0.12) * fade * (0.8 + kick * 0.6);
+}
+
+/** A car further up the road (we overtake it), with its tail lights. */
+void otherCar(vec2 p, float zc, float lane, inout vec3 col) {
+  if (zc < 0.9) return;
+  vec2 c = vec2((roadX(zc) + lane) / zc, HOR - CAMH / zc);
+  vec2 q = (p - c) * zc;
+  float fade = exp(-zc * 0.035);
+  col *= 1.0 - smoothstep(0.04, -0.04, length(q * vec2(1.0, 6.0)) - 0.24) * 0.5;
+  float body = box(q - vec2(0.0, 0.08), vec2(0.2, 0.045), 0.02);
+  float cabin = box(vec2(q.x * (1.0 + (q.y - 0.13) * 3.0), q.y - 0.155), vec2(0.12, 0.035), 0.025);
+  if (min(body, cabin) < 0.0) col = vec3(0.03, 0.015, 0.05) + PINK() * 0.04 * fade;
+  float tl = box(q - vec2(0.0, 0.09), vec2(0.17, 0.01), 0.005);
+  vec3 tail = vec3(1.0, 0.1, 0.25);
+  col += tail * (smoothstep(0.012, 0.0, tl) * 1.3 + exp(-max(tl, 0.0) * 25.0) * 0.3) * fade;
+  // and their glow on the wet road below
+  if (q.y < 0.0) col += tail * exp(-abs(q.x) * 10.0) * exp(q.y * 6.0) * 0.12 * fade;
+}
+
 void main() {
   vec2 p = (gl_FragCoord.xy - 0.5 * res) / res.y;
-  vec3 col;
-  if (p.y > HOR) {
-    col = skyView(p);
+  vec3 col = p.y > HOR ? skyView(p) : ground(p);
+
+  // the roadside, far to near: a billboard, poles, two cars we are overtaking
+  float zb = 1.0 + mod(-travel, 16.0);
+  billboard(p, zb, mod(floor(travel / 16.0), 2.0) < 0.5 ? 1.0 : -1.0, col);
+  for (int i = 7; i >= 0; i--) {
+    float zi = 1.2 + float(i) * 3.0 - mod(travel, 3.0);
+    if (zi < 0.6) continue;
+    float k = float(i) + floor(travel / 3.0);
+    pole(p, zi, -1.0, k, col);
+    pole(p, zi, 1.0, k, col);
+  }
+  float za = 0.9 + mod(4.0 - travel * 0.3, 34.0);
+  float zc = 0.9 + mod(21.0 - travel * 0.22, 34.0);
+  if (za > zc) {
+    otherCar(p, za, -0.5, col);
+    otherCar(p, zc, 0.5, col);
   } else {
-    float d = HOR - p.y;
-    float z = CAMH / d;
-    float x = p.x * z;
-    float fade = exp(-z * 0.05);
-    // neon grid beside the road
-    vec2 g = vec2(x * 0.9, z * 0.9 + travel);
-    float lines = max(gridLine(g.x, 1.3), gridLine(g.y, 1.3));
-    col = vec3(0.015, 0.0, 0.035) + PINK() * lines * fade * (0.65 + bass * 0.9);
-    col += PINK() * exp(-d * 25.0) * 0.4;
-    // the road: dark and wet, mirroring the sky
-    if (abs(x) < RW) {
-      vec3 refl = skyView(vec2(p.x + sin(z * 3.0 + travel) * 0.002, HOR + d * 0.85));
-      col = vec3(0.02, 0.012, 0.035) + refl * 0.45 * (0.5 + 0.5 * fade) * smoothstep(0.0, 0.05, d);
-      col += CYAN() * smoothstep(0.03, 0.0, abs(abs(x) - (RW - 0.04)) - 0.012) * fade * 1.2;
-      float dash = step(abs(x), 0.016) * step(fract((z + travel) * 0.45), 0.42);
-      col += vec3(1.0, 0.95, 0.8) * dash * fade * 0.5;
-    }
-    // light poles rushing by, their lamps flashing on beats
-    for (int i = 0; i < 8; i++) {
-      float zi = 1.2 + float(i) * 3.0 - mod(travel, 3.0);
-      if (zi < 0.6) continue;
-      for (int sd = -1; sd <= 1; sd += 2) {
-        float X = float(sd) * (RW + 0.55);
-        float sx = X / zi;
-        float base = HOR - CAMH / zi;
-        float top = base + 1.1 / zi;
-        if (abs(p.x - sx) < 0.01 / zi + 0.002 && p.y > base && p.y < top) col = vec3(0.02, 0.01, 0.04);
-        vec2 lamp = vec2(sx - float(sd) * 0.12 / zi, top);
-        float ld = length(p - lamp) * zi;
-        vec3 lc = mod(float(i), 2.0) < 0.5 ? PINK() : CYAN();
-        col += lc * (exp(-ld * 60.0) * 1.2 + exp(-ld * 9.0) * 0.15) * (0.7 + kick * 0.9) * exp(-zi * 0.04);
-      }
-    }
+    otherCar(p, zc, 0.5, col);
+    otherCar(p, za, -0.5, col);
   }
-  // poles above the horizon too (their upper parts)
-  if (p.y > HOR) {
-    for (int i = 0; i < 8; i++) {
-      float zi = 1.2 + float(i) * 3.0 - mod(travel, 3.0);
-      if (zi < 0.6) continue;
-      for (int sd = -1; sd <= 1; sd += 2) {
-        float X = float(sd) * (RW + 0.55);
-        float sx = X / zi;
-        float base = HOR - CAMH / zi;
-        float top = base + 1.1 / zi;
-        if (abs(p.x - sx) < 0.01 / zi + 0.002 && p.y < top) col = vec3(0.02, 0.01, 0.04);
-        vec2 arm0 = vec2(sx, top);
-        vec2 arm1 = vec2(sx - float(sd) * 0.12 / zi, top);
-        if (seg(p, arm0, arm1, 0.004 / zi + 0.001) < 0.0) col = vec3(0.02, 0.01, 0.04);
-        vec2 lamp = arm1;
-        float ld = length(p - lamp) * zi;
-        vec3 lc = mod(float(i), 2.0) < 0.5 ? PINK() : CYAN();
-        col += lc * (exp(-ld * 60.0) * 1.2 + exp(-ld * 9.0) * 0.15) * (0.7 + kick * 0.9) * exp(-zi * 0.04);
-      }
-    }
-  }
+
+  // speed streaks from the vanishing point when the music pushes
+  vec2 vp = vec2(bend * 40.0, HOR);
+  vec2 dv = p - vp;
+  float sl = floor(atan(dv.y, dv.x) * 110.0);
+  float streak = step(0.975, hash1(sl)) * step(fract(log(length(dv) + 1e-3) * 3.0 - travel * 0.5 + hash1(sl + 4.0)), 0.22);
+  col += vec3(0.75, 0.8, 1.0) * streak * smoothstep(0.35, 0.8, length(dv)) * kick * smoothstep(0.6, 0.95, bass) * 0.18;
 
   // palm trees framing the view
   float pl = palm(vec2(-p.x - 0.7, p.y + 0.56), 0.6, 0.3, sway);
@@ -298,16 +415,24 @@ void main() {
   col = mix(col, vec3(0.01, 0.0, 0.02), smoothstep(0.002, 0.0, palms));
   col += PINK() * smoothstep(0.006, 0.0, abs(palms + 0.002)) * 0.35 * step(palms, 0.004);
 
-  // the car, from behind, bobbing a little on the bass
-  vec2 cp = p - vec2(0.0, -0.37 + bass * 0.006 + sin(t * 11.0) * 0.0012);
+  // the car, from behind, leaning into the bends and bobbing a little on the bass
+  vec2 cp = p - vec2(-bend * 8.0, -0.37 + bass * 0.006 + sin(t * 11.0) * 0.0012);
+  float lean = bend * 12.0;
+  cp = mat2(cos(lean), sin(lean), -sin(lean), cos(lean)) * cp;
   float shadow = length(cp * vec2(1.0, 4.0) + vec2(0.0, 0.25)) - 0.24;
   col *= 1.0 - smoothstep(0.05, -0.05, shadow) * 0.7;
+  // neon underglow on the road
+  float ug = length((cp - vec2(0.0, -0.07)) * vec2(1.0, 5.0));
+  col += mix(CYAN(), PINK(), 0.5 + 0.5 * sin(t * 1.5)) * exp(-ug * 8.0) * (0.25 + bass * 0.7);
   float body = box(cp, vec2(0.215, 0.042), 0.022);
   float cabin = box(vec2(cp.x * (1.0 + (cp.y - 0.05) * 3.5), cp.y - 0.075), vec2(0.125, 0.034), 0.024);
   float wheels = min(box(cp - vec2(-0.16, -0.052), vec2(0.04, 0.02), 0.008), box(cp - vec2(0.16, -0.052), vec2(0.04, 0.02), 0.008));
-  float car = min(min(body, cabin), wheels);
+  float spoiler = min(box(cp - vec2(0.0, 0.06), vec2(0.22, 0.006), 0.002), min(box(cp - vec2(-0.14, 0.05), vec2(0.006, 0.01), 0.0), box(cp - vec2(0.14, 0.05), vec2(0.006, 0.01), 0.0)));
+  float car = min(min(min(body, cabin), wheels), spoiler);
   if (car < 0.0) {
     col = mix(vec3(0.05, 0.02, 0.08), vec3(0.015, 0.005, 0.03), smoothstep(0.03, -0.05, cp.y));
+    // the glossy paint catches the neon from both sides
+    col += mix(PINK(), CYAN(), smoothstep(-0.2, 0.2, cp.x)) * smoothstep(0.1, 0.22, abs(cp.x)) * 0.12;
     // rear window with the sunset in it
     float win = box(vec2(cp.x * (1.0 + (cp.y - 0.05) * 3.5), cp.y - 0.077), vec2(0.105, 0.022), 0.016);
     if (win < 0.0) col = mix(vec3(1.0, 0.35, 0.5), vec3(0.25, 0.05, 0.3), smoothstep(0.06, 0.1, cp.y)) * 0.8 + vec3(0.2) * smoothstep(0.004, 0.0, abs(cp.x + cp.y * 0.8 - 0.02));
@@ -316,13 +441,14 @@ void main() {
     if (grille < 0.0) col = vec3(0.01) + vec3(0.04) * step(0.5, fract(cp.y * 160.0));
     float plate = box(cp - vec2(0.0, -0.022), vec2(0.035, 0.011), 0.003);
     if (plate < 0.0) col = vec3(0.7, 0.7, 0.75);
+    if (spoiler < 0.0) col = vec3(0.02, 0.01, 0.03) + PINK() * 0.25 * smoothstep(0.0, 0.006, cp.y - 0.054);
   }
   float lightBar = box(cp - vec2(0.0, 0.009), vec2(0.19, 0.005), 0.003);
   vec3 tail = vec3(1.0, 0.08, 0.22);
   col += tail * smoothstep(0.003, 0.0, lightBar) * (1.3 + kick * 1.2);
   col += tail * exp(-max(lightBar, 0.0) * 55.0) * (0.25 + kick * 0.55);
   // tail lights on the wet road
-  if (p.y < cp.y + 0.37 - 0.43 && abs(cp.x) < 0.2) col += tail * exp(-abs(cp.x - 0.15 * sign(cp.x)) * 60.0) * exp(-(-0.06 - cp.y) * 7.0) * 0.15 * step(cp.y, -0.06);
+  if (abs(cp.x) < 0.2) col += tail * exp(-abs(cp.x - 0.15 * sign(cp.x)) * 60.0) * exp(-(-0.06 - cp.y) * 7.0) * 0.15 * step(cp.y, -0.06);
   // rim light from the sun along the top of the car
   col += PINK() * smoothstep(0.005, 0.0, abs(car)) * step(0.0, cp.y) * 0.6;
 
@@ -334,15 +460,39 @@ void main() {
 
 export function createDriveRenderer(canvas: HTMLCanvasElement, url: Url): Renderer | null {
   let travel = 0;
+  let bend = 0;
+  let target = 0;
+  let nextBend = 6;
+  let shift = 0;
+  let pulse = 9;
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const edge = beatEdge();
   return createShaderScene(
     canvas,
     {
       name: 'drive',
       fs: DRIVE,
-      uniforms: ['travel', 'sway'],
+      uniforms: ['travel', 'sway', 'bend', 'shift', 'pulse'],
+      post: { bloom: 0.9, threshold: 0.72, grain: 0.03, fringe: 0.004 },
       update: (gl, U, f) => {
-        travel += f.dt * (2.2 + f.bass * 4 + f.kick * 4) * (f.reduced ? 0.3 : 1);
+        const m = f.reduced ? 0.3 : 1;
+        const speed = (2.2 + f.bass * 4 + f.kick * 4) * m;
+        travel += f.dt * speed;
+        pulse += f.dt;
+        if (edge(f.kick) && !f.reduced) pulse = 0;
+        // the road bends now and then, with straights in between; the sky slides the other way
+        nextBend -= f.dt;
+        if (nextBend <= 0) {
+          target = rnd() < 0.3 ? 0 : (rnd() * 2 - 1) * 0.0035;
+          nextBend = 5 + rnd() * 6;
+        }
+        bend += ((f.reduced ? 0 : target) - bend) * Math.min(1, f.dt * 0.6);
+        shift = (shift + bend * speed * f.dt * 6) * Math.exp(-f.dt * 0.15);
         gl.uniform1f(U.travel!, travel);
+        gl.uniform1f(U.bend!, bend);
+        gl.uniform1f(U.shift!, shift);
+        gl.uniform1f(U.pulse!, pulse);
         // palms swaying in the breeze, a little more with the bass
         gl.uniform1f(U.sway!, (Math.sin(f.t * 0.7) * 0.08 + f.bass * 0.05) * (f.reduced ? 0 : 1));
       },
@@ -356,7 +506,7 @@ export function createDriveRenderer(canvas: HTMLCanvasElement, url: Url): Render
 /* ------------------------------------------------------------------ */
 
 const VINYL = `${SCENE_HEADER}
-uniform float angle, pitch, focal;
+uniform float angle, pitch, focal, aperture;
 uniform vec3 sty, camPos, camTgt;
 // A turntable, ray traced analytically (boxes, cylinders, capsules) with shadows and reflections: a gunmetal
 // deck on a walnut plinth, the aluminium platter with strobe dots, the record with groove sheen and the
@@ -459,6 +609,48 @@ vec3 envLight(vec3 d) {
   float neon = smoothstep(0.06, 0.0, abs(d.y - 0.14)) * smoothstep(0.1, -0.3, d.z);
   c += mix(c1, c2, smoothstep(-0.6, 0.6, d.x)) * neon * (0.3 + bass * 0.6);
   return c;
+}
+// club lights above the deck: four beams sweeping through hazy air in the cover's colours,
+// each as bright as its band of the spectrum, flaring on the beat
+void beam(int i, out vec3 bo, out vec3 bd, out vec3 bc) {
+  float fi = float(i);
+  bo = vec3(-3.0 + fi * 2.0, 4.5, -2.6 + mod(fi, 2.0) * 0.8);
+  float sw = t * (0.3 + fi * 0.07) + fi * 1.7;
+  bd = normalize(vec3(sin(sw) * 0.7 - bo.x * 0.12, -1.0, 0.75 + cos(sw * 0.8) * 0.35));
+  bc = mix(c1, c2, mod(fi, 2.0)) * (0.25 + level(0.1 + fi * 0.25) * 1.4) * (1.0 + kick * 0.6);
+}
+// the glow of the beams along the view ray, up to the first surface
+vec3 beams(vec3 ro, vec3 rd, float tmax) {
+  vec3 acc = vec3(0.0);
+  for (int i = 0; i < 4; i++) {
+    vec3 bo, bd, bc;
+    beam(i, bo, bd, bc);
+    vec3 w0 = ro - bo;
+    float b = dot(rd, bd);
+    float den = max(1.0 - b * b, 1e-4);
+    float sr = clamp((b * dot(bd, w0) - dot(rd, w0)) / den, 0.0, tmax);
+    vec3 pr = ro + rd * sr;
+    float sb = dot(pr - bo, bd);
+    if (sb <= 0.0) continue;
+    float w = 0.025 + sb * 0.04;
+    float dist = length(pr - bo - bd * sb);
+    acc += bc * exp(-dist * dist / (w * w)) * (0.3 / (w * 8.0 + 0.5)) * smoothstep(0.0, 0.6, sb);
+  }
+  return acc;
+}
+// the coloured spots the beams throw on the deck
+vec3 beamSpots(vec3 pos, vec3 n) {
+  vec3 acc = vec3(0.0);
+  for (int i = 0; i < 4; i++) {
+    vec3 bo, bd, bc;
+    beam(i, bo, bd, bc);
+    vec3 v = pos - bo;
+    float along = dot(v, bd);
+    if (along <= 0.0) continue;
+    float w = 0.025 + along * 0.04;
+    acc += bc * smoothstep(w * 1.2, w * 0.5, length(v - bd * along)) * max(dot(n, -bd), 0.0) * (1.2 / (w * 6.0 + 0.4));
+  }
+  return acc;
 }
 // cheap shading of what the record reflects
 vec3 quick(Hit h, vec3 rd) {
@@ -643,8 +835,13 @@ void main() {
       col = vec3(0.55) * (0.08 + diff * 0.5) + refl * 0.85 + vec3(1.0) * sp;
     }
   }
+  if (h.id != 0) col += beamSpots(pos, n) * (h.id == 3 ? 0.12 : 0.3) * (0.5 + 0.5 * shadow);
+  col += beams(ro, rd, h.id == 0 ? 30.0 : h.t);
   col *= 1.0 - smoothstep(0.45, 1.25, length(p)) * 0.6;
-  o = vec4(aces(col * 1.35), 1.0);
+  // how out of focus this pixel is (for the depth of field after)
+  float z = min(h.t, 60.0);
+  float coc = clamp(abs(z - length(camTgt - ro)) / z * aperture, 0.0, 1.0);
+  o = vec4(aces(col * 1.35), coc);
 }`;
 
 /** One camera position: spherical round a target (or the stylus), and the lens. */
@@ -654,13 +851,15 @@ interface Shot {
   dist: number;
   tgt: [number, number, number] | 'stylus';
   focal: number;
+  /** how shallow the depth of field is */
+  ap: number;
 }
 const SHOTS: Shot[] = [
-  { az: 0, elev: 0.72, dist: 5.1, tgt: [0.32, -0.12, 0.12], focal: 1.8 }, // the whole deck
-  { az: 0.15, elev: 1.3, dist: 2.7, tgt: [0, 0, 0.05], focal: 1.7 },      // from above: the label
-  { az: 0.75, elev: 0.28, dist: 1.5, tgt: 'stylus', focal: 2 },           // the stylus in the groove
-  { az: -0.85, elev: 0.2, dist: 3.1, tgt: [0.1, 0.05, 0], focal: 1.8 },   // low along the record
-  { az: 0.45, elev: 0.5, dist: 2.3, tgt: [1, 0.12, -0.35], focal: 1.8 },  // the tonearm
+  { az: 0, elev: 0.72, dist: 5.1, tgt: [0.32, -0.12, 0.12], focal: 1.8, ap: 0.3 }, // the whole deck
+  { az: 0.15, elev: 1.3, dist: 2.7, tgt: [0, 0, 0.05], focal: 1.7, ap: 0.5 },      // from above: the label
+  { az: 0.75, elev: 0.28, dist: 1.5, tgt: 'stylus', focal: 2, ap: 2.5 },           // the stylus in the groove
+  { az: -0.85, elev: 0.2, dist: 3.1, tgt: [0.1, 0.05, 0], focal: 1.8, ap: 1.2 },   // low along the record
+  { az: 0.45, elev: 0.5, dist: 2.3, tgt: [1, 0.12, -0.35], focal: 1.8, ap: 1.4 },  // the tonearm
 ];
 const ORDER = [0, 1, 0, 2, 3, 0, 4, 1, 2, 0, 3, 4];
 const PIVOT: [number, number] = [1.32, -0.82];
@@ -688,8 +887,9 @@ export function createVinylRenderer(canvas: HTMLCanvasElement, url: Url): Render
     {
       name: 'vinyl',
       fs: VINYL,
-      uniforms: ['angle', 'pitch', 'focal', 'sty', 'camPos', 'camTgt'],
+      uniforms: ['angle', 'pitch', 'focal', 'aperture', 'sty', 'camPos', 'camTgt'],
       scale: 0.9,
+      post: { bloom: 0.8, threshold: 0.6, dof: 0.012, grain: 0.02 },
       update: (gl, U, f) => {
         // 33⅓ rpm with a hint of wow
         angle -= f.dt * 3.49 * (1 + Math.sin(f.t * 0.9) * 0.004) * (f.reduced ? 0.4 : 1);
@@ -718,6 +918,7 @@ export function createVinylRenderer(canvas: HTMLCanvasElement, url: Url): Render
           dist: s.dist * (1 - Math.min(since, 15) * 0.004),
           tgt: s.tgt === 'stylus' ? ([sty[0], sty[1] + 0.02, sty[2]] as [number, number, number]) : s.tgt,
           focal: s.focal,
+          ap: s.ap,
         };
         const mix = (a: number, b: number) => a + (b - a) * e;
         cur = {
@@ -726,12 +927,14 @@ export function createVinylRenderer(canvas: HTMLCanvasElement, url: Url): Render
           dist: mix(from.dist, to.dist),
           tgt: [mix(from.tgt[0], to.tgt[0]), mix(from.tgt[1], to.tgt[1]), mix(from.tgt[2], to.tgt[2])],
           focal: mix(from.focal, to.focal),
+          ap: mix(from.ap, to.ap),
         };
         const dist = cur.dist * (1 - (f.reduced ? 0 : f.kick) * 0.012);
         const ce = Math.cos(cur.elev);
         gl.uniform3f(U.camPos!, cur.tgt[0] + dist * ce * Math.sin(cur.az), cur.tgt[1] + dist * Math.sin(cur.elev), cur.tgt[2] + dist * ce * Math.cos(cur.az));
         gl.uniform3f(U.camTgt!, ...cur.tgt);
         gl.uniform1f(U.focal!, cur.focal);
+        gl.uniform1f(U.aperture!, cur.ap);
       },
     },
     url,
@@ -743,7 +946,8 @@ export function createVinylRenderer(canvas: HTMLCanvasElement, url: Url): Render
 /* ------------------------------------------------------------------ */
 
 const RAIN = `${SCENE_HEADER}
-uniform float beats, slide, flash;
+uniform float beats, slide, flash, boltSeed;
+uniform vec2 drift;
 // A rainy window at night. Drops slide down the glass in jerks and leave a wet trail with little beads
 // behind; new drops land on the beat; everywhere else the glass is misted. Through the mist the street
 // outside is a blur of lights; through the water it is sharp (and, in the drops, upside down).
@@ -825,6 +1029,16 @@ vec3 street(vec2 q, float blur) {
   float R = mix(0.008, 0.07, blur);
   vec3 col = mix(vec3(0.05, 0.045, 0.08) + mix(c1, c2, 0.5) * 0.03, vec3(0.012, 0.014, 0.03), smoothstep(-0.1, 0.5, q.y));
   col += vec3(0.5, 0.55, 0.8) * flash * smoothstep(-0.1, 0.5, q.y) * 0.5;
+  // the lightning itself: a jagged bolt with a branch, softened by the mist like everything else
+  if (flash > 0.01 && q.y > 0.15) {
+    float w = 0.0015 + blur * 0.025;
+    float bx = (hash1(boltSeed) - 0.5) * 1.2;
+    float x = bx + (fbm(vec2(q.y * 5.0, boltSeed)) - 0.5) * 0.3 + (noise(vec2(q.y * 40.0, boltSeed)) - 0.5) * 0.03;
+    float d = abs(q.x - x);
+    float br = abs(q.x - x - (q.y - 0.42) * 0.5 - (noise(vec2(q.y * 35.0, boltSeed + 3.0)) - 0.5) * 0.04) + step(0.42, q.y) * 9.0;
+    float bolt = exp(-d / w) + exp(-br / w) * 0.6 * smoothstep(0.2, 0.42, q.y);
+    col += vec3(0.75, 0.8, 1.0) * bolt * flash * (0.004 / w) * 6.0;
+  }
   // buildings opposite, dark against the sky, with windows
   float bh = 0.18 + 0.12 * step(0.5, hash1(floor(q.x * 4.0 + 20.0)));
   float bmask = smoothstep(bh + R * 0.5, bh - R * 0.5, q.y);
@@ -864,11 +1078,19 @@ vec3 street(vec2 q, float blur) {
       col += tc * exp(-abs(q.x - xt - o) / (0.004 + R * 0.4)) * smoothstep(-0.2, -0.45, q.y) * exp((q.y + 0.2) * 4.0) * 0.06;
     }
   }
-  // a column of neon signs on the left, each one a band of the spectrum
-  for (int i = 0; i < 6; i++) {
-    float k = float(i) / 5.0;
-    float v = level(0.05 + k * 0.85);
-    col += bokeh(q, vec2(-0.62 + sin(k * 9.0) * 0.03, -0.02 + k * 0.32), mix(c1, c2, k) * (0.15 + v * 1.6), R * 0.9);
+  // a neon sign on the building to the left: a tube bent into the shape of the spectrum, in a frame
+  {
+    float w = 0.0018 + blur * 0.03;
+    float u = (q.x + 0.76) / 0.5;
+    if (u > -0.1 && u < 1.1) {
+      float uc = clamp(u, 0.0, 1.0);
+      float y = 0.0 + level(0.04 + uc * 0.9) * 0.14;
+      float d = length(vec2((u - uc) * 0.5, q.y - y));
+      col += mix(c1, c2, uc) * exp(-d / w) * (0.0035 / w) * 1.6;
+    }
+    vec2 fq = abs(q - vec2(-0.51, 0.07)) - vec2(0.27, 0.1);
+    float fd = abs(max(fq.x, fq.y));
+    col += c2 * exp(-fd / w) * (0.0035 / w) * (0.5 + bass * 0.8);
   }
   // the wet road
   col += mix(c1, c2, 0.5) * smoothstep(-0.2, -0.5, q.y) * 0.015;
@@ -886,7 +1108,7 @@ void main() {
   float fog = (1.0 - max(g0.y * 0.85, water)) * (0.8 + 0.2 * noise(p * 4.0));
   // the drops are lenses: they bend the view, the bigger the slope the more
   // (clamped at the rims, where the finite difference jumps)
-  vec2 q = p - grad * min(1.0, 3.0 / max(slope, 1e-3)) * (0.015 + g0.x * 1.5);
+  vec2 q = p - grad * min(1.0, 3.0 / max(slope, 1e-3)) * (0.015 + g0.x * 1.5) + drift;
   // the camera focuses on the glass, so even through the water the street stays a little soft
   // and the drops, little lenses, gather a bit more light than the glass around them
   vec3 col = street(q, max(fog, 0.6)) * (1.0 + water * 0.5);
@@ -913,13 +1135,15 @@ export function createRainRenderer(canvas: HTMLCanvasElement, url: Url): Rendere
   let count = 0;
   let sinceFlash = 99;
   let flashT = 99;
+  let boltSeed = 1;
   return createShaderScene(
     canvas,
     {
       name: 'rain',
       fs: RAIN,
-      uniforms: ['beats', 'slide', 'flash'],
+      uniforms: ['beats', 'slide', 'flash', 'boltSeed', 'drift'],
       scale: 0.8,
+      post: { bloom: 0.8, threshold: 0.55, grain: 0.03 },
       update: (gl, U, f) => {
         const m = f.reduced ? 0.3 : 1;
         sinceBeat += f.dt;
@@ -934,6 +1158,7 @@ export function createRainRenderer(canvas: HTMLCanvasElement, url: Url): Rendere
           if ((f.bass > 0.8 && sinceFlash > 14) || ++count % 64 === 0) {
             flashT = 0;
             sinceFlash = 0;
+            boltSeed = Math.random() * 100;
           }
         } else if (sinceBeat > 2) clock += f.dt * 0.6 * m;
         else clock = Math.min(clock + f.dt / period, Math.floor(clock) + 0.999);
@@ -942,6 +1167,10 @@ export function createRainRenderer(canvas: HTMLCanvasElement, url: Url): Rendere
         gl.uniform1f(U.beats!, clock);
         gl.uniform1f(U.slide!, slide);
         gl.uniform1f(U.flash!, flash);
+        gl.uniform1f(U.boltSeed!, boltSeed);
+        // standing at the window: the street shifts a little behind the glass
+        const m2 = f.reduced ? 0 : 1;
+        gl.uniform2f(U.drift!, Math.sin(f.t * 0.05) * 0.03 * m2, Math.sin(f.t * 0.037) * 0.012 * m2);
       },
     },
     url,
@@ -953,13 +1182,14 @@ export function createRainRenderer(canvas: HTMLCanvasElement, url: Url): Rendere
 /* ------------------------------------------------------------------ */
 
 const KALEIDO = `${SCENE_HEADER}
-uniform float segA, segB, angA, angB, mixAB, rot, zoom, wave;
+uniform float segA, segB, angA, angB, modeA, modeB, mixAB, rot, zoom, wave, zoomT;
 // A kaleidoscope of the cover: the view is folded into a rosette of mirrors and then folded a few times
 // more (a small fractal), so the cover breaks into facets like cut glass: bright seams where the mirrors
 // meet, every facet tilted its own way and glinting as the light turns, a little colour fringing.
+// Some patterns are a tunnel instead: the same mirrors, but the pieces fly in towards the middle.
 mat2 rot2(float a) { return mat2(cos(a), sin(a), -sin(a), cos(a)); }
 struct Fold { vec2 q; float seam; float facet; };
-Fold fold(vec2 p, float segs, float ang) {
+Fold fold(vec2 p, float segs, float ang, float mode) {
   Fold f;
   float r = length(p);
   float a = atan(p.y, p.x) + rot;
@@ -967,6 +1197,13 @@ Fold fold(vec2 p, float segs, float ang) {
   a = mod(a, s);
   a = abs(a - s * 0.5);
   f.seam = sin(a) * r;
+  if (mode > 0.5) {
+    // the tunnel: the folded angle across, the log of the distance along (so the pieces keep their
+    // shape as they shrink), flying inwards
+    f.q = vec2(a / s * 0.9, log(max(r, 1e-3)) * 0.45 + zoomT);
+    f.facet = 0.0;
+    return f;
+  }
   vec2 q = vec2(cos(a), sin(a)) * r;
   float sc = 1.0;
   f.facet = 0.0;
@@ -1012,8 +1249,8 @@ vec3 shards(vec2 q, float dens, float seed, out float edge) {
   edge = (d2 - d1) * 0.5 / dens;
   return vec3((ip + bestC) / dens, hash(best + seed * 3.0));
 }
-vec3 shade(vec2 p, float segs, float ang, float r) {
-  Fold f = fold(p, segs, ang);
+vec3 shade(vec2 p, float segs, float ang, float mode, float r) {
+  Fold f = fold(p, segs, ang, mode);
   vec2 drift = vec2(sin(t * 0.05), cos(t * 0.04)) * 0.15;
   // pieces of coloured glass: each shows the cover round its centre, slightly magnified, colours fringed
   float e;
@@ -1046,6 +1283,8 @@ vec3 shade(vec2 p, float segs, float ang, float r) {
   // the mirror seams
   vec3 seamCol = mix(mix(c1, c2, r * 1.5), vec3(1.0), 0.35);
   c += seamCol * (smoothstep(px * 1.5, 0.0, f.seam) * 0.25 + exp(-f.seam * 120.0) * 0.06) * (0.4 + high * 0.8);
+  // deep in the tunnel it gets darker
+  if (mode > 0.5) c *= smoothstep(0.03, 0.4, r);
   return c;
 }
 void main() {
@@ -1055,8 +1294,8 @@ void main() {
   // a ripple running out from the centre on every beat
   float w = exp(-pow((r - wave * 0.9) * 10.0, 2.0)) * exp(-wave * 2.2);
   p *= 1.0 + w * 0.025;
-  vec3 col = shade(p, segB, angB, r);
-  if (mixAB < 1.0) col = mix(shade(p, segA, angA, r), col, smoothstep(0.0, 1.0, mixAB));
+  vec3 col = shade(p, segB, angB, modeB, r);
+  if (mixAB < 1.0) col = mix(shade(p, segA, angA, modeA, r), col, smoothstep(0.0, 1.0, mixAB));
   col *= 1.0 + w * 0.8;
   // a ring of light round the middle, brighter where the spectrum is
   float ang = abs(fract((atan(p.y, p.x) + rot) / (2.0 * PI) * 2.0) - 0.5) * 2.0;
@@ -1078,6 +1317,9 @@ export function createKaleidoRenderer(canvas: HTMLCanvasElement, url: Url): Rend
   let beats = 0;
   let rot = 0;
   let wave = 9;
+  let modeA = 0;
+  let modeB = 0;
+  let zoomT = 0;
   let seed = 3;
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const edge = beatEdge();
@@ -1086,7 +1328,8 @@ export function createKaleidoRenderer(canvas: HTMLCanvasElement, url: Url): Rend
     {
       name: 'kaleido',
       fs: KALEIDO,
-      uniforms: ['segA', 'segB', 'angA', 'angB', 'mixAB', 'rot', 'zoom', 'wave'],
+      uniforms: ['segA', 'segB', 'angA', 'angB', 'modeA', 'modeB', 'mixAB', 'rot', 'zoom', 'wave', 'zoomT'],
+      post: { bloom: 0.7, threshold: 0.62, grain: 0.015 },
       update: (gl, U, f) => {
         wave += f.dt;
         if (edge(f.kick) && !f.reduced) {
@@ -1095,13 +1338,17 @@ export function createKaleidoRenderer(canvas: HTMLCanvasElement, url: Url): Rend
           if (++beats % 8 === 0) {
             segA = segB;
             angA = angB;
+            modeA = modeB;
             segB = choices[(beats / 8) % choices.length]!;
             angB = 0.25 + rnd() * 1.1;
+            // every third pattern is a tunnel
+            modeB = (beats / 8) % 3 === 2 ? 1 : 0;
             mixAB = 0;
           }
         }
         mixAB = Math.min(1, mixAB + f.dt);
         rot += f.dt * (0.06 + f.bass * 0.3) * (f.reduced ? 0.2 : 1);
+        zoomT += f.dt * (0.1 + f.bass * 0.35) * (f.reduced ? 0.2 : 1);
         gl.uniform1f(U.segA!, segA);
         gl.uniform1f(U.segB!, segB);
         gl.uniform1f(U.angA!, angA);
@@ -1110,6 +1357,9 @@ export function createKaleidoRenderer(canvas: HTMLCanvasElement, url: Url): Rend
         gl.uniform1f(U.rot!, rot);
         gl.uniform1f(U.zoom!, 1 + Math.sin(f.t * 0.13) * 0.3);
         gl.uniform1f(U.wave!, f.reduced ? 9 : wave);
+        gl.uniform1f(U.modeA!, modeA);
+        gl.uniform1f(U.modeB!, modeB);
+        gl.uniform1f(U.zoomT!, zoomT);
       },
     },
     url,
@@ -1121,13 +1371,19 @@ export function createKaleidoRenderer(canvas: HTMLCanvasElement, url: Url): Rend
 /* ------------------------------------------------------------------ */
 
 const OCEAN = `${SCENE_HEADER}
-uniform float travel, H, chop, glow;
+uniform float travel, H, chop, glow, beamAng;
 // The open sea at night. The water is a sum of sharp-crested waves (exp of a sine) in directions spread by
 // the golden angle, each pulling the next towards its crests so they bunch up like real swell; the swell
 // grows with the bass and the chop with the treble. A big moon lays a glittering path on the water,
 // clouds drift past it, an aurora in the cover's colours ripples with the spectrum, and the crests light up
-// with bioluminescence on the beat.
+// with bioluminescence on the beat. Far off, a lighthouse on a rocky island turns its beam once every
+// 16 beats.
 const vec3 MOON = vec3(0.1478, 0.1971, 0.9692);
+const float ISL = -0.32;                        // the island's azimuth
+const vec3 LAMP = vec3(-78.6, 7.5, 237.4);      // the lighthouse lamp, 250 away at that azimuth
+vec3 beamDir() { return vec3(cos(beamAng), -0.012, sin(beamAng)); }
+// how much the beam faces us (the flash when it sweeps past)
+float facing() { return pow(max(dot(normalize(beamDir().xz), normalize(-LAMP.xz)), 0.0), 60.0); }
 float waves(vec2 p, int n) {
   float freq = 1.0;
   float amp = 1.0;
@@ -1152,7 +1408,7 @@ float waves(vec2 p, int n) {
   return sum / wsum;
 }
 float sea(vec2 xz, int n) { return (waves(xz * 0.3, n) - 1.0) * H; }
-vec3 skyCol(vec3 d) {
+vec3 skyCol(vec3 d, bool land) {
   float y = max(d.y, 0.0);
   vec3 c = mix(vec3(0.025, 0.035, 0.07) + mix(c1, c2, 0.5) * 0.04, vec3(0.002, 0.004, 0.012), pow(y, 0.4));
   float md = dot(d, MOON);
@@ -1183,6 +1439,32 @@ vec3 skyCol(vec3 d) {
   float maria = smoothstep(0.45, 0.7, fbm(mp * 1.6 + 3.0));
   c += vec3(1.0, 0.97, 0.9) * disc * (2.4 - maria * 0.9);
   c += mix(vec3(0.65, 0.72, 1.0), c2, 0.2) * (pow(max(md, 0.0), 2000.0) * 0.6 + pow(max(md, 0.0), 60.0) * 0.07);
+  // a shooting star every few seconds
+  float sl = floor(t / 5.0);
+  float sa = fract(t / 5.0) / 0.14;
+  if (sa < 1.0 && y > 0.02) {
+    vec2 sp = vec2(az, y);
+    vec2 s0 = vec2(hash1(sl) * 1.6 - 0.8, 0.18 + hash1(sl + 3.0) * 0.1);
+    vec2 sdir = normalize(vec2(hash1(sl + 7.0) < 0.5 ? -1.0 : 1.0, -0.45));
+    vec2 head = s0 + sdir * sa * 0.25;
+    vec2 pa = sp - head + sdir * 0.07;
+    float h = clamp(dot(pa, sdir) / 0.07, 0.0, 1.0);
+    float dl = length(pa - sdir * 0.07 * h);
+    c += vec3(0.9, 0.95, 1.0) * smoothstep(0.0012, 0.0, dl) * h * (1.0 - sa) * 1.5;
+  }
+  // the island on the horizon with its lighthouse
+  float ia = az - ISL;
+  float ih = (0.016 * pow(max(1.0 - ia * ia / 0.0016, 0.0), 0.7) + (noise(vec2(az * 300.0, 1.0)) - 0.5) * 0.004) * step(abs(ia), 0.04);
+  float tower = step(abs(ia), 0.0016 - (d.y - 0.012) * 0.04) * step(d.y, 0.028);
+  if (land && (d.y < ih || tower > 0.0)) {
+    c = mix(vec3(0.004, 0.005, 0.01), c * 0.5, 0.35);
+    // a lit window halfway up the tower
+    c += vec3(1.0, 0.8, 0.5) * step(abs(ia), 0.0007) * step(abs(d.y - 0.021), 0.001) * 0.6;
+  }
+  // the lamp: a bright point, flaring when the beam sweeps past
+  vec3 ld = normalize(LAMP);
+  float lg = max(dot(d, ld), 0.0);
+  c += vec3(1.0, 0.9, 0.7) * (pow(lg, 400000.0) * 4.0 + pow(lg, 20000.0) * 0.4 + pow(lg, 2000.0) * facing() * 1.5 + pow(lg, 200.0) * facing() * 0.15);
   // thin clouds drifting past, their edges silvered by the moon
   if (d.y > 0.0) {
     vec2 cuv = d.xz / (d.y + 0.06) * 0.7 + vec2(t * 0.012, t * 0.004);
@@ -1202,7 +1484,7 @@ void main() {
   vec3 rd = normalize(vec3(p.x, p.y - 0.1, 1.5));
   vec3 col;
   if (rd.y >= 0.0) {
-    col = skyCol(rd);
+    col = skyCol(rd, true);
   } else {
     // into the slab of water between y = 0 and y = -H, stepping by the gap above the waves
     float tt = (0.0 - ro.y) / rd.y;
@@ -1224,7 +1506,7 @@ void main() {
     float fres = 0.02 + 0.98 * pow(1.0 - max(dot(nn, -rd), 0.0), 5.0);
     vec3 rdir = reflect(rd, nn);
     rdir.y = abs(rdir.y);
-    vec3 refl = skyCol(rdir);
+    vec3 refl = skyCol(rdir, true);
     // light through the crests (green-blue), the deep water dark
     // how high on the wave (0 trough … 1 the highest crests)
     float hn = smoothstep(0.15, 0.7, (h / H + 1.0 - 0.135) / 0.865);
@@ -1238,11 +1520,28 @@ void main() {
     float gl = max(dot(rdir, MOON), 0.0);
     col += vec3(1.0, 0.95, 0.85) * (pow(gl, 1500.0) * 6.0 + pow(gl, 120.0) * 0.12) * (0.6 + high);
     // bioluminescence on the crests, lighting up on the beat; sparks of plankton near the boat
-    float crest = smoothstep(0.65, 1.0, hn) * smoothstep(0.35, 0.75, noise(pos.xz * 0.7 + travel * 0.6));
+    float crest = smoothstep(0.65, 1.0, hn) * smoothstep(0.35, 0.75, noise(pos.xz * 0.7 + travel * 0.6)) * smoothstep(0.35, 0.85, noise(pos.xz * vec2(4.0, 2.5) - travel));
     float plankton = step(0.992, hash(floor(pos.xz * 6.0))) * smoothstep(0.4, 0.9, hn);
     vec3 bio = mix(c1, c2, noise(pos.xz * 0.08));
-    col += bio * (crest * (0.03 + glow * 0.7) + plankton * glow * 1.5) * exp(-tt * 0.025);
-    col = mix(col, skyCol(normalize(vec3(rd.x, 0.001, rd.z))) * 0.9, 1.0 - exp(-tt * 0.006));
+    col += bio * (crest * (0.03 + glow * 0.9) + plankton * glow * 1.5) * exp(-tt * 0.04);
+    col = mix(col, skyCol(normalize(vec3(rd.x, 0.001, rd.z)), false) * 0.9, 1.0 - exp(-tt * 0.006));
+  }
+  // the lighthouse beam through the hazy air, up to the water
+  {
+    float tmax = rd.y < 0.0 ? (0.0 - ro.y) / rd.y * 1.2 : 1e4;
+    vec3 bd = beamDir();
+    vec3 lamp = LAMP + vec3(0.0, ro.y, 0.0);
+    vec3 w0 = ro - lamp;
+    float b = dot(rd, bd);
+    float den = max(1.0 - b * b, 1e-5);
+    float sr = clamp((b * dot(bd, w0) - dot(rd, w0)) / den, 0.0, tmax);
+    vec3 pr = ro + rd * sr;
+    float sb = dot(pr - lamp, bd);
+    if (sb > 0.0) {
+      float w = 0.8 + sb * 0.05;
+      float dist = length(pr - lamp - bd * sb);
+      col += vec3(1.0, 0.9, 0.7) * exp(-dist * dist / (w * w)) * (1.5 / (w + 2.0)) * exp(-sb * 0.004) * 0.25;
+    }
   }
   col *= 1.0 - smoothstep(0.55, 1.3, length(p)) * 0.5;
   o = vec4(aces(col * 1.5), 1.0);
@@ -1252,13 +1551,18 @@ export function createOceanRenderer(canvas: HTMLCanvasElement, url: Url): Render
   let travel = 0;
   let swell = 0.4;
   let chop = 0.6;
+  let beamAng = 0;
+  let period = 0.5;
+  let sinceBeat = 9;
+  const edge = beatEdge();
   return createShaderScene(
     canvas,
     {
       name: 'ocean',
       fs: OCEAN,
-      uniforms: ['travel', 'H', 'chop', 'glow'],
+      uniforms: ['travel', 'H', 'chop', 'glow', 'beamAng'],
       scale: 0.7,
+      post: { bloom: 0.9, threshold: 0.5, grain: 0.03 },
       update: (gl, U, f) => {
         const m = f.reduced ? 0.3 : 1;
         travel += f.dt * (0.8 + f.bass * 0.5) * m;
@@ -1270,6 +1574,14 @@ export function createOceanRenderer(canvas: HTMLCanvasElement, url: Url): Render
         gl.uniform1f(U.H!, 0.45 + swell * 0.9);
         gl.uniform1f(U.chop!, chop);
         gl.uniform1f(U.glow!, (f.reduced ? 0 : f.kick) * (0.4 + f.bass * 0.8));
+        // the lighthouse turns once every 16 beats (at the song's tempo)
+        sinceBeat += f.dt;
+        if (edge(f.kick)) {
+          if (sinceBeat > 0.25 && sinceBeat < 1.5) period += (sinceBeat - period) * 0.2;
+          sinceBeat = 0;
+        }
+        beamAng += (f.dt * Math.PI * 2) / (16 * period) * m;
+        gl.uniform1f(U.beamAng!, beamAng);
       },
     },
     url,

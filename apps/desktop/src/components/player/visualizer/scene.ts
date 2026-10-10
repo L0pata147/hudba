@@ -1,14 +1,8 @@
 import { sampleLevel } from '@sonora/core';
 import { imageLoader } from './ambient';
 import { bright, coverTexture, createProgram, fullscreenQuad, lumProbe, QUAD_VS, SCENE_UNIFORMS, uniformsOf } from './gl';
+import { createPost, type PostSpec } from './post';
 import type { Renderer, VisFrame } from './types';
-
-const BLIT_FS = `#version 300 es
-precision highp float;
-out vec4 o;
-uniform sampler2D src;
-uniform vec2 res;
-void main() { o = texture(src, gl_FragCoord.xy / res); }`;
 
 export interface ShaderSceneSpec {
   name: string;
@@ -20,30 +14,26 @@ export interface ShaderSceneSpec {
   update?: (gl: WebGL2RenderingContext, U: Record<string, WebGLUniformLocation | null>, f: VisFrame) => void;
   /** starting render scale (adapts to the frame rate between 0.45 and 1) */
   scale?: number;
+  post?: PostSpec;
 }
 
 /**
  * A full-screen fragment-shader scene: shared uniforms (time, bass, beat,
  * spectrum, palette, cover texture) plus the scene's own, rendered at a
- * resolution that adapts to the frame rate and scaled up.
+ * resolution that adapts to the frame rate, then post-processed (bloom,
+ * optional depth of field, grain) and scaled up.
  */
 export function createShaderScene(canvas: HTMLCanvasElement, spec: ShaderSceneSpec, getUrl: () => string | undefined): Renderer | null {
   const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, depth: false });
   if (!gl) return null;
   const prog = createProgram(gl, QUAD_VS, spec.fs, spec.name);
-  const blit = createProgram(gl, QUAD_VS, BLIT_FS, `${spec.name} blit`);
-  if (!prog || !blit) return null;
+  const post = createPost(gl, spec.post ?? {}, spec.name);
+  if (!prog || !post) return null;
   const U = uniformsOf(gl, prog, [...SCENE_UNIFORMS, ...(spec.uniforms ?? [])]);
-  const B = uniformsOf(gl, blit, ['src', 'res']);
   const quad = fullscreenQuad(gl);
   const probe = lumProbe(gl, canvas);
   const cover = coverTexture(gl, imageLoader);
   const lv = new Float32Array(24);
-
-  const target = gl.createTexture();
-  const fbo = gl.createFramebuffer();
-  let tw = 0;
-  let th = 0;
   let scale = spec.scale ?? 0.85;
   let slow = 0;
   let fast = 0;
@@ -64,22 +54,10 @@ export function createShaderScene(canvas: HTMLCanvasElement, spec: ShaderSceneSp
       const H = canvas.height;
       const w = Math.max(1, Math.round(W * scale));
       const h = Math.max(1, Math.round(H * scale));
-      if (w !== tw || h !== th) {
-        tw = w;
-        th = h;
-        gl.bindTexture(gl.TEXTURE_2D, target);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target, 0);
-      }
       for (let i = 0; i < 24; i++) lv[i] = sampleLevel(f.levels, i / 23);
 
-      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-      gl.viewport(0, 0, w, h);
+      post.begin(w, h);
+      gl.disable(gl.BLEND);
       gl.useProgram(prog);
       cover.bind(0);
       gl.uniform1i(U.cover!, 0);
@@ -95,24 +73,14 @@ export function createShaderScene(canvas: HTMLCanvasElement, spec: ShaderSceneSp
       gl.uniform3f(U.c2!, ...bright(f.palette[1]));
       spec.update?.(gl, U, f);
       quad.draw();
-
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, W, H);
-      gl.useProgram(blit);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, target);
-      gl.uniform1i(B.src!, 0);
-      gl.uniform2f(B.res!, W, H);
-      quad.draw();
+      post.end(W, H, f.bass);
       probe();
     },
     dispose() {
       quad.dispose();
       cover.dispose();
-      gl.deleteTexture(target);
-      gl.deleteFramebuffer(fbo);
+      post.dispose();
       gl.deleteProgram(prog);
-      gl.deleteProgram(blit);
     },
   };
 }
