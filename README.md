@@ -240,6 +240,14 @@ Full-screen player → waveform icon or `V`. Eleven styles (ten on mobile), swit
 | Liquid cover | Desktop: a raymarched 3D liquid drop (WebGL2) — spikes standing up along a turning lattice with the spectrum (bass at the bottom), the cover refracted through it with colour dispersion, reflections, highlights, droplets flung out on beats and pulled back, a slowly circling camera; the resolution adapts to keep it smooth. Mobile: a ferrofluid drop holding the cover with orbiting droplets |
 | Lyric pulse | Karaoke: the current synced line in big words that light up as they are sung (timed between lines by word length), each lifted by its part of the spectrum, over the flowing cover |
 | Ambient | Desktop (WebGL): the cover's colours flowing like liquid light (domain-warped noise), bright folds swelling with the bass, aurora ribbons and drifting bokeh. Mobile: the cover huge, blurred and slowly turning |
+| Particle cover | Desktop: the cover as ~36 000 glowing particles that every beat blows apart in 3D (harder with more bass) and that swirl back into the picture |
+| Black hole | Desktop: a black hole bending the sky (made of the cover) around it, an edge-on accretion disk in the cover's colours flaring with the bass and the spectrum, its far side lensed over the top |
+| Synthwave drive | Desktop: a night drive on a neon grid road towards a striped sun; the city skyline is a spectrum, the speed follows the bass, tail lights flash on beats |
+| Turntable | Desktop: a spinning record at 33⅓ rpm with the cover as its label, groove sheen that follows the treble, tonearm, platter glow on the bass and dust in the light |
+| Fireworks | Desktop: beats launch rockets in the cover's colours over a skyline — more and bigger with more bass — bursting into sparks with trails; the treble makes the glitter twinkle |
+| Rain on glass | Desktop: raindrops sliding down a window, each a small lens showing the blurred scene (the cover and city lights flickering with the music) upside down |
+| Kaleidoscope | Desktop: the cover folded into a turning mandala; the number of mirrors changes every 8 beats |
+| Night ocean | Desktop: a raymarched sea under the moon; the swell follows the bass, the chop the treble, crests glow on beats |
 
 Desktop path styles are drawn into an offscreen layer that keeps motion trails, with static parts under it and a quarter-resolution blurred copy added on top as **bloom**; if frames take too long (weak or no GPU) the bloom switches itself off.
 

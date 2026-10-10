@@ -232,7 +232,7 @@ test('visualizer styles: every style draws, menu and arrow keys switch, the choi
       return lit / n;
     });
 
-  const expected = ['ring', 'bars', 'mirror', 'scope', 'terrain', 'tunnel', 'galaxy', 'milkdrop', 'liquid', 'lyrics', 'ambient', 'dancer'];
+  const expected = ['ring', 'bars', 'mirror', 'scope', 'terrain', 'tunnel', 'galaxy', 'milkdrop', 'liquid', 'lyrics', 'ambient', 'particles', 'blackhole', 'drive', 'vinyl', 'fireworks', 'rain', 'kaleido', 'ocean', 'dancer'];
   const next = page.getByRole('button', { name: 'Next visualizer style' });
   for (const [i, id] of expected.entries()) {
     if (i) await next.click();

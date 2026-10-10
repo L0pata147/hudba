@@ -304,7 +304,7 @@ export interface EqualizerSettings {
   preset: string | null;
 }
 
-/** Visualizer styles; `milkdrop` and `dancer` need WebGL and exist on desktop only. */
+/** Visualizer styles; the WebGL ones (`milkdrop`, `dancer`, the scenes after `ambient`) exist on desktop only. */
 export type VisualizerStyle =
   | 'ring'
   | 'bars'
@@ -317,6 +317,14 @@ export type VisualizerStyle =
   | 'liquid'
   | 'lyrics'
   | 'ambient'
+  | 'particles'
+  | 'blackhole'
+  | 'drive'
+  | 'vinyl'
+  | 'fireworks'
+  | 'rain'
+  | 'kaleido'
+  | 'ocean'
   | 'dancer';
 
 export interface Preferences {

@@ -34,6 +34,14 @@ export const VISUALIZER_STYLES: VisualizerStyleInfo[] = [
   { ...base, id: 'liquid', name: 'Liquid cover', shake: true, backdrop: false },
   { ...base, id: 'lyrics', name: 'Lyric pulse', backdrop: false },
   { ...base, id: 'ambient', name: 'Ambient', backdrop: false },
+  { ...base, id: 'particles', name: 'Particle cover', desktopOnly: true, backdrop: false },
+  { ...base, id: 'blackhole', name: 'Black hole', desktopOnly: true, backdrop: false },
+  { ...base, id: 'drive', name: 'Synthwave drive', desktopOnly: true, backdrop: false },
+  { ...base, id: 'vinyl', name: 'Turntable', desktopOnly: true, backdrop: false },
+  { ...base, id: 'fireworks', name: 'Fireworks', desktopOnly: true, backdrop: false },
+  { ...base, id: 'rain', name: 'Rain on glass', desktopOnly: true, backdrop: false },
+  { ...base, id: 'kaleido', name: 'Kaleidoscope', desktopOnly: true, backdrop: false },
+  { ...base, id: 'ocean', name: 'Night ocean', desktopOnly: true, backdrop: false },
   { ...base, id: 'dancer', name: 'Dancer', desktopOnly: true, backdrop: false },
 ];
 

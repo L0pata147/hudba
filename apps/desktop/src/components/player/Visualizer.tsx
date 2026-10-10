@@ -32,6 +32,16 @@ import { createLiquid3dRenderer } from './visualizer/liquid3d';
 import { createAmbientRenderer } from './visualizer/ambient';
 import { createAmbientGlRenderer } from './visualizer/ambient-gl';
 import { createTunnelGlRenderer } from './visualizer/tunnel-gl';
+import { createParticlesRenderer } from './visualizer/particles';
+import { createFireworksRenderer } from './visualizer/fireworks';
+import {
+  createBlackHoleRenderer,
+  createDriveRenderer,
+  createKaleidoRenderer,
+  createOceanRenderer,
+  createRainRenderer,
+  createVinylRenderer,
+} from './visualizer/scenes-gl';
 import { LyricPulse } from './visualizer/LyricPulse';
 import { createDancerRenderer } from './visualizer/dancer';
 import { DancerPanel } from './visualizer/DancerPanel';
@@ -86,6 +96,22 @@ function createRenderer(style: VisualizerStyle, canvas: HTMLCanvasElement, o: Re
       return createAmbientGlRenderer(canvas, o.backgroundUrl, 0.7) ?? createAmbientRenderer(canvas, o.backgroundUrl, 0.7);
     case 'ambient':
       return createAmbientGlRenderer(canvas, o.backgroundUrl) ?? createAmbientRenderer(canvas, o.backgroundUrl);
+    case 'particles':
+      return createParticlesRenderer(canvas, o.coverUrl);
+    case 'blackhole':
+      return createBlackHoleRenderer(canvas, o.backgroundUrl);
+    case 'drive':
+      return createDriveRenderer(canvas, o.backgroundUrl);
+    case 'vinyl':
+      return createVinylRenderer(canvas, o.coverUrl);
+    case 'fireworks':
+      return createFireworksRenderer(canvas);
+    case 'rain':
+      return createRainRenderer(canvas, o.backgroundUrl);
+    case 'kaleido':
+      return createKaleidoRenderer(canvas, o.coverUrl);
+    case 'ocean':
+      return createOceanRenderer(canvas, o.backgroundUrl);
     case 'tunnel':
       return createTunnelGlRenderer(canvas) ?? createPathRenderer(canvas, 'tunnel');
     case 'dancer':
@@ -213,7 +239,7 @@ export function Visualizer({ song }: { song: Song }) {
       intensity: () => preferencesStore.getState().visualizerIntensity,
     });
     if (!renderer) {
-      if (style === 'milkdrop' || style === 'dancer') setGlFailed(true);
+      if (style !== 'fireworks' && visualizerStyleInfo(style).desktopOnly) setGlFailed(true);
       return;
     }
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
