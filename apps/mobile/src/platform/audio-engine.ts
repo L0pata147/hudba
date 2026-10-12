@@ -1,11 +1,25 @@
-import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioStatus } from 'expo-audio';
+import { PermissionsAndroid, Platform } from 'react-native';
+import { createAudioPlayer, setAudioModeAsync, type AudioMetadata, type AudioPlayer, type AudioStatus } from 'expo-audio';
 import type { AudioEngine, AudioEngineListener, LoadOptions } from '@sonora/core';
 import { tryGetNavidrome } from '@sonora/core';
+
+/** Runs a call into the native player; a failure is logged instead of taking the app down. */
+function safely(what: string, fn: () => void) {
+  try {
+    fn();
+  } catch (err) {
+    console.warn(`expo-audio ${what} failed`, err);
+  }
+}
 
 /**
  * expo-audio engine (AVPlayer on iOS, ExoPlayer/Media3 on Android).
  * Supports background playback and lock-screen / notification controls.
  * Crossfade is not supported by this engine; transitions are hard cuts.
+ *
+ * The lock-screen / notification controls are registered once, when playback
+ * first starts, and later songs only update their metadata: registering again
+ * for every song makes expo-audio rebuild its media session each time.
  */
 export class ExpoAudioEngine implements AudioEngine {
   private player: AudioPlayer;
@@ -17,6 +31,8 @@ export class ExpoAudioEngine implements AudioEngine {
   private endedFor: string | null = null;
   private src: string | null = null;
   private sampleSub: { remove(): void } | null = null;
+  private metadata: AudioMetadata | null = null;
+  private lockScreen = false;
 
   constructor() {
     this.player = createAudioPlayer(null, { updateInterval: 250 });
@@ -29,11 +45,13 @@ export class ExpoAudioEngine implements AudioEngine {
     if (s.isLoaded && !this.loaded) {
       this.loaded = true;
       if (this.pendingSeek != null) {
-        void this.player.seekTo(this.pendingSeek);
+        const at = this.pendingSeek;
+        safely('seekTo', () => void this.player.seekTo(at).catch(() => undefined));
         this.pendingSeek = null;
       }
-      if (this.wantPlay) this.player.play();
+      if (this.wantPlay) safely('play', () => this.player.play());
     }
+    if (s.playing && !this.lockScreen && this.metadata) this.activateLockScreen();
     if (s.didJustFinish) {
       if (this.endedFor !== this.src) {
         this.endedFor = this.src;
@@ -61,38 +79,44 @@ export class ExpoAudioEngine implements AudioEngine {
     this.lastPlaying = false;
     this.wantPlay = opts.autoplay;
     this.pendingSeek = opts.startAt && opts.startAt > 0 ? opts.startAt : null;
-    this.player.replace({ uri: src });
+    safely('replace', () => this.player.replace({ uri: src }));
     const art = tryGetNavidrome()?.media.coverArtUrl(opts.song.coverArtId, 600);
-    this.player.setActiveForLockScreen(
-      true,
-      { title: opts.song.title, artist: opts.song.artist, albumTitle: opts.song.album, artworkUrl: art },
-      { showSeekBackward: true, showSeekForward: true },
-    );
-    if (opts.autoplay) this.player.play();
+    this.metadata = { title: opts.song.title, artist: opts.song.artist, albumTitle: opts.song.album, artworkUrl: art };
+    if (this.lockScreen) safely('updateLockScreenMetadata', () => this.player.updateLockScreenMetadata(this.metadata!));
+    if (opts.autoplay) safely('play', () => this.player.play());
     else this.listener.onStatus('paused');
+  }
+
+  private activateLockScreen() {
+    this.lockScreen = true;
+    safely('setActiveForLockScreen', () => this.player.setActiveForLockScreen(true, this.metadata!, { showSeekBackward: true, showSeekForward: true }));
+    // Android 13+ only shows the playback notification with this permission
+    if (Platform.OS === 'android' && Number(Platform.Version) >= 33) {
+      void PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS).catch(() => undefined);
+    }
   }
 
   play(): void {
     this.wantPlay = true;
-    this.player.play();
+    safely('play', () => this.player.play());
   }
 
   pause(): void {
     this.wantPlay = false;
-    this.player.pause();
+    safely('pause', () => this.player.pause());
   }
 
   seek(seconds: number): void {
-    if (this.loaded) void this.player.seekTo(seconds);
+    if (this.loaded) safely('seekTo', () => void this.player.seekTo(seconds).catch(() => undefined));
     else this.pendingSeek = seconds;
   }
 
   setVolume(volume: number): void {
-    this.player.volume = volume;
+    safely('volume', () => (this.player.volume = volume));
   }
 
   setMuted(muted: boolean): void {
-    this.player.muted = muted;
+    safely('muted', () => (this.player.muted = muted));
   }
 
   /** Whether the native player can deliver PCM samples (Android Visualizer / iOS audio tap). */
@@ -119,7 +143,8 @@ export class ExpoAudioEngine implements AudioEngine {
   stop(): void {
     this.wantPlay = false;
     this.src = null;
-    this.player.pause();
-    this.player.clearLockScreenControls();
+    safely('pause', () => this.player.pause());
+    if (this.lockScreen) safely('clearLockScreenControls', () => this.player.clearLockScreenControls());
+    this.lockScreen = false;
   }
 }

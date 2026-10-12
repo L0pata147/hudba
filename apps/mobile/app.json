@@ -21,7 +21,7 @@
     "android": {
       "package": "app.sonora.mobile",
       "versionCode": 1,
-      "permissions": ["android.permission.REQUEST_INSTALL_PACKAGES"],
+      "permissions": ["android.permission.REQUEST_INSTALL_PACKAGES", "android.permission.POST_NOTIFICATIONS"],
       "adaptiveIcon": { "foregroundImage": "./assets/icon.png", "backgroundColor": "#08080B" },
       "usesCleartextTraffic": true
     },
@@ -29,7 +29,8 @@
       "expo-router",
       "expo-secure-store",
       ["expo-audio", { "enableBackgroundPlayback": true }],
-      ["expo-build-properties", { "android": { "usesCleartextTraffic": true } }]
+      ["expo-build-properties", { "android": { "usesCleartextTraffic": true } }],
+      "./plugins/with-crash-log"
     ],
     "experiments": { "typedRoutes": false }
   }

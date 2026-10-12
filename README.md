@@ -300,6 +300,8 @@ The Windows app updates itself from the **Latest build** release (Tauri updater)
 
 **Android** updates itself from the same release: each build gets `versionCode` = build number and publishes `android-version.json` next to the APK. The app checks a few seconds after start-up (or Settings → About → *Check now*), downloads the new APK and opens the system installer, which installs it over the current app (every APK is signed with the same key). Android asks once to allow installing apps from Sonora. Like on Windows, the first build with the updater has to be installed by hand.
 
+**Crash reports (Android):** if the app closes unexpectedly, the next start shows the report (native crashes are written by a handler the `plugins/with-crash-log` config plugin adds to `MainApplication`, fatal JS errors by a global handler); *Share report* sends it from the phone. A render error shows the report in place instead of closing the app.
+
 ## Radio
 
 Navidrome has no "radio" or "instant mix" endpoint. What it does offer, and what Sonora uses:

@@ -13,6 +13,10 @@ import { useTheme } from '../src/theme';
 import { ActionSheetHost, AddToPlaylistHost, PromptHost } from '../src/components/hosts';
 import LoginScreen from '../src/screens/Login';
 import { UpdateBanner, useAutoUpdateCheck } from '../src/components/UpdateBanner';
+import { CrashNotice, ErrorBoundary } from '../src/components/CrashNotice';
+import { installJsCrashHandler, useCrashReport } from '../src/platform/crash-log';
+
+installJsCrashHandler();
 
 const queryClient = createQueryClient();
 const persister = createAsyncStoragePersister({ storage: AsyncStorage, key: 'sonora.query-cache', throttleTime: 2000 });
@@ -52,6 +56,7 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const t = useTheme();
   useEffect(() => {
+    useCrashReport.getState().load();
     void initPlatform().finally(() => setReady(true));
   }, []);
   return (
@@ -63,13 +68,16 @@ export default function RootLayout() {
           persistOptions={{ persister, maxAge: 7 * 24 * 3600_000, dehydrateOptions: { shouldDehydrateQuery: (q) => q.state.status === 'success' && PERSISTED.has(String(q.queryKey[0])) } }}
         >
           {ready ? (
-            <Root />
+            <ErrorBoundary>
+              <Root />
+            </ErrorBoundary>
           ) : (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               <ActivityIndicator color={t.accent} />
             </View>
           )}
         </PersistQueryClientProvider>
+        <CrashNotice />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
