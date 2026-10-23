@@ -22,7 +22,7 @@
       "package": "app.sonora.mobile",
       "versionCode": 1,
       "permissions": ["android.permission.REQUEST_INSTALL_PACKAGES", "android.permission.POST_NOTIFICATIONS"],
-      "adaptiveIcon": { "foregroundImage": "./assets/icon.png", "backgroundColor": "#08080B" },
+      "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#08080B" },
       "usesCleartextTraffic": true
     },
     "plugins": [

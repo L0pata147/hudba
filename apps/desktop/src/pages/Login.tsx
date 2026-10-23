@@ -50,8 +50,8 @@ export function LoginPage() {
 
   return (
     <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-bg px-5 py-10">
-      <div className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(255,122,69,0.22),transparent)] blur-2xl" aria-hidden />
-      <div className="pointer-events-none absolute -bottom-48 -left-24 h-[420px] w-[520px] rounded-full bg-[radial-gradient(closest-side,rgba(255,92,122,0.14),transparent)] blur-2xl" aria-hidden />
+      <div className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(92,155,255,0.22),transparent)] blur-2xl" aria-hidden />
+      <div className="pointer-events-none absolute -bottom-48 -left-24 h-[420px] w-[520px] rounded-full bg-[radial-gradient(closest-side,rgba(194,92,255,0.14),transparent)] blur-2xl" aria-hidden />
       <main className="animate-rise relative w-full max-w-[420px]">
         <div className="mb-9 flex flex-col items-center text-center">
           <LogoMark size={76} />

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, { Rect } from 'react-native-svg';
 import { AlertCircle, Check, ShieldAlert } from 'lucide-react-native';
 import { describeError, NavidromeError } from '@sonora/api';
 import { sessionStore, useRecentServers } from '@sonora/core';
@@ -10,17 +10,21 @@ import { validateServerUrl } from '@sonora/utils';
 import { useTheme } from '../theme';
 import { Button, T } from '../components/ui';
 
+/** The bars of the Overtone mark: a spectrum visualizer mid-song, each bar in its own colour. */
+const BARS = [
+  { x: 12, h: 16, color: '#5CFFC8' },
+  { x: 22, h: 30, color: '#5CE1FF' },
+  { x: 32, h: 42, color: '#5C9BFF' },
+  { x: 42, h: 24, color: '#8B6BFF' },
+  { x: 52, h: 34, color: '#C25CFF' },
+];
+
 export function LogoMark({ size = 72 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64" accessibilityElementsHidden>
-      <Defs>
-        <SvgGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor="#FFB36B" />
-          <Stop offset="1" stopColor="#FF5C7A" />
-        </SvgGradient>
-      </Defs>
-      <Circle cx="32" cy="32" r="22" fill="none" stroke="url(#g)" strokeWidth={6} strokeDasharray="100 38" strokeLinecap="round" transform="rotate(-40 32 32)" />
-      <Circle cx="32" cy="32" r="9.5" fill="url(#g)" />
+      {BARS.map((b) => (
+        <Rect key={b.x} x={b.x - 3.2} y={53 - b.h} width={6.4} height={b.h} rx={3.2} fill={b.color} />
+      ))}
     </Svg>
   );
 }
@@ -72,7 +76,7 @@ export default function LoginScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-      <LinearGradient colors={['rgba(255,122,69,0.25)', 'transparent']} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 360 }} />
+      <LinearGradient colors={['rgba(92,155,255,0.24)', 'transparent']} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 360 }} />
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 48, gap: 18 }} keyboardShouldPersistTaps="handled">
