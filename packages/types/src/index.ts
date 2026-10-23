@@ -1,5 +1,5 @@
 /**
- * Sonora domain types.
+ * Overtone domain types.
  *
  * These are the app's own normalized models. The Navidrome/Subsonic wire format
  * lives in `@sonora/api` and is mapped into these types, so UI and business logic
@@ -353,7 +353,7 @@ export interface Preferences {
   skin: string;
   /** Desktop: check GitHub for a new version at start-up. */
   autoUpdate: boolean;
-  /** Desktop: closing the window keeps Sonora playing in the tray. */
+  /** Desktop: closing the window keeps Overtone playing in the tray. */
   closeToTray: boolean;
 }
 

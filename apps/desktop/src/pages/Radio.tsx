@@ -75,7 +75,7 @@ function StartRadio() {
         <RadioIcon className="absolute -top-6 -right-6 size-40 text-accent/10" aria-hidden />
         <h1 className="font-display text-[2.2rem] font-extrabold tracking-tight">Radio</h1>
         <p className="mt-2 max-w-xl text-[15px] text-fg-2">
-          Pick a song, album, artist, playlist or genre and Sonora keeps playing similar music from your library — endlessly, without repeats. You can
+          Pick a song, album, artist, playlist or genre and Overtone keeps playing similar music from your library — endlessly, without repeats. You can
           also start Radio from any ⋯ menu.
         </p>
         {cur && (

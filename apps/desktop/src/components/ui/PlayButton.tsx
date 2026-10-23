@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';
 
-/** Custom play / pause glyphs (Sonora's own rounded shapes). */
+/** Custom play / pause glyphs (Overtone's own rounded shapes). */
 export function PlayGlyph({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">

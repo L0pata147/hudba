@@ -5,7 +5,7 @@
 @import '@fontsource/vt323/400.css';
 
 /*
- * Sonora design system — CSS layer.
+ * Overtone design system — CSS layer.
  * Values mirror packages/ui/src/index.ts. Theme + accent are switched at
  * runtime by setting CSS variables on <html> (see src/lib/theme.ts).
  */

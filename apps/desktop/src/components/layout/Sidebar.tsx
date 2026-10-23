@@ -103,7 +103,7 @@ export function Sidebar() {
     >
       <nav aria-label="Main" className="rounded-lg bg-bg-elevated px-3 pt-4 pb-2">
         <div className={clsx('mb-3 flex items-center px-2', collapsed ? 'justify-center' : 'justify-between')}>
-          <button type="button" onClick={() => navigate('/')} aria-label="Sonora home" className="rounded-md">
+          <button type="button" onClick={() => navigate('/')} aria-label="Overtone home" className="rounded-md">
             <Logo collapsed={collapsed} />
           </button>
         </div>

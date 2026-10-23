@@ -22,7 +22,7 @@ describe('authentication', () => {
     for (const call of server.calls) {
       expect(call.params.get('p')).toBeNull();
       expect(call.params.toString()).not.toContain('hunter2');
-      expect(call.params.get('c')).toBe('Sonora');
+      expect(call.params.get('c')).toBe('Overtone');
     }
     expect(JSON.stringify(session)).not.toContain('hunter2');
   });

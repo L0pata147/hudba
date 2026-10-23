@@ -95,7 +95,7 @@ export default function Settings() {
           <Row label="Sync queue with server">{sw(prefs.syncQueue, 'syncQueue')}</Row>
         </Section>
         <Section title="Appearance">
-          <T dim={1} style={{ fontSize: 13 }}>Skin — a complete look for the whole app. Theme and accent apply to the Sonora skin only.</T>
+          <T dim={1} style={{ fontSize: 13 }}>Skin — a complete look for the whole app. Theme and accent apply to the Overtone skin only.</T>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }} accessibilityRole="radiogroup" accessibilityLabel="Skin">
             {SKINS.map((skin) => {
               const on = (prefs.skin ?? 'sonora') === skin.id;
@@ -144,7 +144,7 @@ export default function Settings() {
           />
         </Section>
         <Section title="About">
-          <Row label="Sonora" detail={`v${updater.current}`} />
+          <Row label="Overtone" detail={`v${updater.current}`} />
           <Row label="Check for updates at start-up">
             <Switch value={prefs.autoUpdate} onValueChange={(x) => set('autoUpdate', x)} trackColor={{ true: t.accent, false: t.surfaceActive }} thumbColor="#fff" />
           </Row>

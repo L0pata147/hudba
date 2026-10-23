@@ -4,7 +4,7 @@ import type { SubsonicEnvelope } from './wire';
 
 /** Subsonic API version we speak. Navidrome implements 1.16.1 + OpenSubsonic. */
 export const SUBSONIC_API_VERSION = '1.16.1';
-export const DEFAULT_CLIENT_NAME = 'Sonora';
+export const DEFAULT_CLIENT_NAME = 'Overtone';
 export const DEFAULT_TIMEOUT_MS = 15_000;
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;

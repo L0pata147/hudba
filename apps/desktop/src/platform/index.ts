@@ -14,7 +14,7 @@ export async function initPlatform(): Promise<void> {
     // See README → Security: in the browser/Tauri the session token lives in app-private WebView storage.
     secureStorage: createWebStorage('secure:'),
     offline: isOfflineStorageSupported() ? createCacheStorageOfflineAdapter() : undefined,
-    clientName: 'Sonora',
+    clientName: 'Overtone',
     platform: isTauri ? 'desktop' : 'web',
   });
   const engine = new HtmlAudioEngine();

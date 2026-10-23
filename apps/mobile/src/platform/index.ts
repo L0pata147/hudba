@@ -13,7 +13,7 @@ export async function initPlatform(): Promise<void> {
     storage: asyncStorage,
     secureStorage,
     offline: createFileSystemOfflineAdapter(),
-    clientName: 'Sonora',
+    clientName: 'Overtone',
     platform: Platform.OS === 'ios' ? 'ios' : 'android',
   });
   setAudioEngine(new ExpoAudioEngine());

@@ -13,12 +13,12 @@ export function UpdateBanner() {
       <Download className="relative size-4 shrink-0 text-accent" />
       <p className="relative min-w-0 flex-1 truncate">
         {status === 'downloading'
-          ? `Downloading Sonora ${version}… ${Math.round(progress * 100)} %`
+          ? `Downloading Overtone ${version}… ${Math.round(progress * 100)} %`
           : status === 'installing'
-            ? `Installing Sonora ${version} — the app restarts in a moment`
+            ? `Installing Overtone ${version} — the app restarts in a moment`
             : status === 'error'
               ? `Update failed: ${error ?? 'unknown error'}`
-              : `Sonora ${version} is available.`}
+              : `Overtone ${version} is available.`}
       </p>
       {!busy && (
         <button type="button" onClick={() => void install()} className="relative rounded-full bg-accent px-3 py-1 text-[13px] font-semibold text-on-accent hover:bg-accent-strong">

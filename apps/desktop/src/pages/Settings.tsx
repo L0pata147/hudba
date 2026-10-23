@@ -134,7 +134,7 @@ export function SettingsPage() {
       <Section title="Appearance">
         <div className="py-3">
           <p className="text-[15px] font-medium">Skin</p>
-          <p className="mt-0.5 text-[13px] text-fg-2">A complete look for the whole app. Skins set their own colours, so theme and accent apply to the Sonora skin only.</p>
+          <p className="mt-0.5 text-[13px] text-fg-2">A complete look for the whole app. Skins set their own colours, so theme and accent apply to the Overtone skin only.</p>
           <SkinPicker />
         </div>
         <div className={clsx(prefs.skin !== 'sonora' && 'pointer-events-none opacity-45')} aria-disabled={prefs.skin !== 'sonora' || undefined}>
@@ -217,7 +217,7 @@ export function SettingsPage() {
       </Section>
 
       <Section title="About">
-        <Row label="Sonora" description={isTauri ? 'Desktop app' : 'Web app'}>
+        <Row label="Overtone" description={isTauri ? 'Desktop app' : 'Web app'}>
           <span className="text-[14px] text-fg-2">v{updater.current}</span>
         </Row>
         {isTauri && (
@@ -249,7 +249,7 @@ export function SettingsPage() {
             <Switch label="Check for updates at start-up" checked={prefs.autoUpdate} onChange={(v) => set('autoUpdate', v)} />
             <Switch
               label="Keep playing in the tray when the window is closed"
-              description="Closing the window hides Sonora next to the clock; quit from the tray icon's menu."
+              description="Closing the window hides Overtone next to the clock; quit from the tray icon's menu."
               checked={prefs.closeToTray}
               onChange={(v) => set('closeToTray', v)}
             />

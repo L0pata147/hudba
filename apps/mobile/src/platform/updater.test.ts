@@ -38,13 +38,13 @@ describe('android updater', () => {
   });
 
   it('offers a build with a higher versionCode and installs it through the system installer', async () => {
-    serve({ version: '0.2.12', versionCode: 12, url: 'https://x/Sonora-Android.apk' });
+    serve({ version: '0.2.12', versionCode: 12, url: 'https://x/Overtone-Android.apk' });
     await useUpdater.getState().check();
     expect(useUpdater.getState()).toMatchObject({ status: 'available', version: '0.2.12' });
     await useUpdater.getState().install();
-    expect(downloadFileAsync).toHaveBeenCalledWith('https://x/Sonora-Android.apk', expect.anything(), expect.anything());
+    expect(downloadFileAsync).toHaveBeenCalledWith('https://x/Overtone-Android.apk', expect.anything(), expect.anything());
     expect(startActivityAsync).toHaveBeenCalledWith('android.intent.action.VIEW', {
-      data: 'content://app/Sonora-12.apk',
+      data: 'content://app/Overtone-12.apk',
       type: 'application/vnd.android.package-archive',
       flags: 1,
     });

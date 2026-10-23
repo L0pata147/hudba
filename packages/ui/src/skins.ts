@@ -42,7 +42,7 @@ const dark = (c: Partial<ThemeColors> & Pick<ThemeColors, 'bg' | 'bgElevated' | 
 export const SKINS: Skin[] = [
   {
     id: 'sonora',
-    name: 'Sonora',
+    name: 'Overtone',
     description: 'The default look — uses your theme and accent colour.',
     mode: 'dark',
     colors: dark({ bg: '#08080B', bgElevated: '#0E0E13', surface: '#131319', surfaceHover: '#1E1E27', surfaceActive: '#26262F', textPrimary: '#F6F6FA', textSecondary: '#9A9AA8', textMuted: '#6E6E7C' }),

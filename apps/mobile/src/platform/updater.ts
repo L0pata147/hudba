@@ -74,7 +74,7 @@ export const useUpdater = create<UpdaterState>()((set, get) => ({
       const dir = new Directory(Paths.cache, 'update');
       if (dir.exists) dir.delete();
       dir.create({ intermediates: true });
-      const apk = await File.downloadFileAsync(m.url, new File(dir, `Sonora-${m.versionCode}.apk`), {
+      const apk = await File.downloadFileAsync(m.url, new File(dir, `Overtone-${m.versionCode}.apk`), {
         onProgress: ({ bytesWritten, totalBytes }) => totalBytes > 0 && set({ progress: Math.min(1, bytesWritten / totalBytes) }),
       });
       set({ status: 'installing', progress: 1 });

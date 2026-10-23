@@ -1,18 +1,18 @@
-# Sonora
+# Overtone
 
-**Sonora** is a modern, artwork-first music player for your self-hosted [Navidrome](https://www.navidrome.org/) server — on desktop (Windows, macOS, Linux via Tauri), in the browser, and on iOS / Android (Expo / React Native).
+**Overtone** is a modern, artwork-first music player for your self-hosted [Navidrome](https://www.navidrome.org/) server — on desktop (Windows, macOS, Linux via Tauri), in the browser, and on iOS / Android (Expo / React Native).
 
 It talks to Navidrome through its Subsonic / OpenSubsonic API. There is no fake data: everything you see comes from your server.
 
-<p align="center"><img src="apps/desktop/public/sonora.svg" width="96" alt="Sonora logo"></p>
+<p align="center"><img src="apps/desktop/public/sonora.svg" width="96" alt="Overtone logo"></p>
 
 ## Download (no developer tools needed)
 
 Every push builds installers on GitHub and publishes them as the **“Latest build”** pre-release
 (repository → *Releases*):
 
-- **Android:** open the release on your phone, download `Sonora-Android.apk`, open it and allow installing from this source.
-- **Windows:** download `Sonora-Setup-Windows.exe` and run it (SmartScreen: *More info → Run anyway*, the installer is not code-signed).
+- **Android:** open the release on your phone, download `Overtone-Android.apk`, open it and allow installing from this source.
+- **Windows:** download `Overtone-Setup-Windows.exe` and run it (SmartScreen: *More info → Run anyway*, the installer is not code-signed).
 
 Then log in with your Navidrome address, e.g. `192.168.0.103:4533` on your home network.
 
@@ -32,7 +32,7 @@ Then log in with your Navidrome address, e.g. `192.168.0.103:4533` on your home 
 | **Queue** | Now playing / up next, drag & drop reordering, remove, jump to, clear, add album/playlist/artist to queue, Play next, Add to end, persistent across navigation & restarts, synced to the server (`savePlayQueue`) to resume on other devices |
 | **Playlists** | Create, rename (with description), delete, add songs, remove songs, reorder (drag & drop), play, shuffle — all synced with Navidrome |
 | **Smart playlists** | Rules that pick songs from the whole library and keep themselves up to date: genres, artist, years, favorites, rating, play count, added / played within, not played for, order and size; ready-made *On repeat*, *Recently added*, *Forgotten favorites*, *Never played*, *Top rated*; live match count while editing; *Save to server as a playlist* to take today's selection to other apps and the phone (desktop & web; the rules are stored on the device because Navidrome only reads smart playlists from files on the server) |
-| **Desktop app** | Tray icon (left click shows Sonora; menu: Play/Pause, Previous, Next, Show, Quit; tooltip shows the song), closing the window keeps the music playing in the tray (Settings → About), mini player — a small frameless strip that stays on top of other windows (button in the player bar) |
+| **Desktop app** | Tray icon (left click shows Overtone; menu: Play/Pause, Previous, Next, Show, Quit; tooltip shows the song), closing the window keeps the music playing in the tray (Settings → About), mini player — a small frameless strip that stays on top of other windows (button in the player bar) |
 | **Favorites** | Songs, albums, artists; optimistic UI everywhere (rows, cards, player, favorites page) with rollback on error |
 | **Equalizer** | 10-band graphic EQ (60 Hz – 16 kHz, ±12 dB) with preamp, 19 presets, response curve, keyboard control; desktop & web (Web Audio). See [Equalizer](#equalizer) |
 | **Visualizer** | Circular neon spectrum ring around the cover (press `V` in the full-screen player), colour taken from the artwork, pulses with the bass; desktop & web |
@@ -162,7 +162,7 @@ npx eas build --platform android  # or ios
    docker run -d -p 4533:4533 -v /path/to/music:/music:ro -v navidrome-data:/data deluan/navidrome:latest
    ```
 2. Open `http://<host>:4533`, create the admin user, let the scan finish.
-3. In Sonora enter the server URL (`https://music.example.com`, or `192.168.1.10:4533` on your LAN — Sonora assumes `http://` for LAN/localhost and `https://` otherwise), your username and password.
+3. In Overtone enter the server URL (`https://music.example.com`, or `192.168.1.10:4533` on your LAN — Overtone assumes `http://` for LAN/localhost and `https://` otherwise), your username and password.
 
 Useful Navidrome options:
 
@@ -174,7 +174,7 @@ Useful Navidrome options:
 | `ND_ENABLEDOWNLOADS=true` (default) | Needed for offline downloads |
 | Lyrics embedded in files or `.lrc` sidecars | Shown in the lyrics view (synced when timestamps exist) |
 
-**CORS:** the web/desktop client calls `/rest/*` directly. Navidrome sends `Access-Control-Allow-Origin: *` for these endpoints. Sonora deliberately uses only CORS "simple requests" (GET, and form-encoded POST for long lists), so no preflight configuration is needed. If you put Navidrome behind a proxy, make sure it does not strip these headers.
+**CORS:** the web/desktop client calls `/rest/*` directly. Navidrome sends `Access-Control-Allow-Origin: *` for these endpoints. Overtone deliberately uses only CORS "simple requests" (GET, and form-encoded POST for long lists), so no preflight configuration is needed. If you put Navidrome behind a proxy, make sure it does not strip these headers.
 
 ## Configuration
 
@@ -195,8 +195,8 @@ No credentials or server addresses are compiled into the source.
 ## Security
 
 - **Password never stored.** Login derives the Subsonic token `t = md5(password + salt)` with a random salt; only `{ username, salt, token }` is persisted. The password never leaves the login form and is never logged. Note that for the Subsonic API this token is still a *credential* (it authenticates API calls), so it is treated as a secret.
-- **Where the token lives:** mobile → iOS Keychain / Android Keystore (`expo-secure-store`, `AFTER_FIRST_UNLOCK`). Desktop → the Tauri WebView's app-private storage (per-user app data dir). Browser → `localStorage` of the Sonora origin. *TODO:* move the desktop token to the OS keychain via a Tauri keyring plugin.
-- **Media URLs carry auth parameters** (`u`, `t`, `s`) because `<audio>`, `<img>` and native players cannot send custom headers — this is inherent to the Subsonic API. They are never logged by Sonora; use HTTPS so they are not visible on the network.
+- **Where the token lives:** mobile → iOS Keychain / Android Keystore (`expo-secure-store`, `AFTER_FIRST_UNLOCK`). Desktop → the Tauri WebView's app-private storage (per-user app data dir). Browser → `localStorage` of the Overtone origin. *TODO:* move the desktop token to the OS keychain via a Tauri keyring plugin.
+- **Media URLs carry auth parameters** (`u`, `t`, `s`) because `<audio>`, `<img>` and native players cannot send custom headers — this is inherent to the Subsonic API. They are never logged by Overtone; use HTTPS so they are not visible on the network.
 - **Server URL validation:** only `http(s)`, no embedded credentials, `/app` & `/rest` suffixes stripped. Plain `http://` to a non-LAN host shows a warning on the login screen and a banner in the app.
 - **Session isolation:** cache keys are scoped by server + user, the query cache and history are cleared on logout, and switching accounts never shows stale data.
 - **Tauri:** strict CSP (scripts only from the bundle), minimal capabilities (`core:default`, window state), single-instance.
@@ -219,7 +219,7 @@ Open it from the player bar (sliders icon), the full-screen player or *Settings 
 
 - **Chain:** `<audio>` → per-element gain (volume, mute, crossfade) → preamp → 10 peaking filters (60, 170, 310, 600 Hz, 1, 3, 6, 12, 14, 16 kHz, Q ≈ 1.4) → soft clipper (linear below −1 dBFS) → speakers. Off = every stage at unity, so the signal is untouched.
 - **Lazy:** Web Audio is only set up the first time the EQ is switched on; until then playback uses the plain media element.
-- **CORS:** Web Audio can only process audio the server allows cross-origin. Navidrome sends `Access-Control-Allow-Origin: *` for `/rest/*` (verified on 0.64). If a proxy strips it, Sonora detects it (CORS probe), keeps playing without the EQ and shows "Equalizer unavailable".
+- **CORS:** Web Audio can only process audio the server allows cross-origin. Navidrome sends `Access-Control-Allow-Origin: *` for `/rest/*` (verified on 0.64). If a proxy strips it, Overtone detects it (CORS probe), keeps playing without the EQ and shows "Equalizer unavailable".
 - **Presets** lower the preamp by half of their largest boost to avoid clipping.
 - **Mobile app:** not available — expo-audio exposes no EQ / DSP API. The responsive web app on a phone has the EQ.
 
@@ -275,7 +275,7 @@ Settings → Appearance → **Skin** restyles the whole app (desktop and mobile)
 
 | Skin | Look |
 | --- | --- |
-| Sonora | the default — your theme and accent colour |
+| Overtone | the default — your theme and accent colour |
 | Classic Amp | charcoal bevels, green LCD, pixel headings |
 | Space Cowboy | midnight blue, cream and mustard, serif headings, a starry background |
 | Unit-01 | purple, acid green and warning orange, condensed upper-case headings, a grid |
@@ -287,7 +287,7 @@ Fonts: Silkscreen and VT323 (both OFL) are bundled on desktop; on mobile each sk
 
 ## Classic mode (desktop)
 
-The ⚡ button in the player bar (or Settings → Appearance → Classic mode) opens the queue in a faithful **Winamp 2.x** — [Webamp](https://github.com/captbaritone/webamp) (MIT) — with its main window, 10-band equalizer and playlist. The current queue, track and position are handed over (Sonora pauses) and handed back when you leave (`Esc` or *Back to Sonora*).
+The ⚡ button in the player bar (or Settings → Appearance → Classic mode) opens the queue in a faithful **Winamp 2.x** — [Webamp](https://github.com/captbaritone/webamp) (MIT) — with its main window, 10-band equalizer and playlist. The current queue, track and position are handed over (Overtone pauses) and handed back when you leave (`Esc` or *Back to Overtone*).
 
 - Load real Winamp skins (`.wsz`) with *Load .wsz…* or by dropping them on the window; *Get skins* opens the [Winamp Skin Museum](https://skins.webamp.org/). Loaded skins are kept in IndexedDB and the last one is used next time.
 - *Picture…* puts your own picture (PNG with transparency works best) behind the Winamp windows and animates it to the music Webamp plays: *Groove* (sways and bounces on the beat), *Pulse*, *Float* or *Still*, with a glow and a shine on beats. Pictures are kept in IndexedDB too.
@@ -300,13 +300,13 @@ The Windows app updates itself from the **Latest build** release (Tauri updater)
 - The public key is in `apps/desktop/src-tauri/tauri.conf.json` (`plugins.updater.pubkey`); the private key must never be committed. Without the secret the build still works, just without update files.
 - Updates start working from the first build that contains the updater (install that one by hand once).
 
-**Android** updates itself from the same release: each build gets `versionCode` = build number and publishes `android-version.json` next to the APK. The app checks a few seconds after start-up (or Settings → About → *Check now*), downloads the new APK and opens the system installer, which installs it over the current app (every APK is signed with the same key). Android asks once to allow installing apps from Sonora. Like on Windows, the first build with the updater has to be installed by hand.
+**Android** updates itself from the same release: each build gets `versionCode` = build number and publishes `android-version.json` next to the APK. The app checks a few seconds after start-up (or Settings → About → *Check now*), downloads the new APK and opens the system installer, which installs it over the current app (every APK is signed with the same key). Android asks once to allow installing apps from Overtone. Like on Windows, the first build with the updater has to be installed by hand.
 
 **Crash reports (Android):** if the app closes unexpectedly, the next start shows the report (native crashes are written by a handler the `plugins/with-crash-log` config plugin adds to `MainApplication`, fatal JS errors by a global handler); *Share report* sends it from the phone. A render error shows the report in place instead of closing the app.
 
 ## Radio
 
-Navidrome has no "radio" or "instant mix" endpoint. What it does offer, and what Sonora uses:
+Navidrome has no "radio" or "instant mix" endpoint. What it does offer, and what Overtone uses:
 
 | Source | Endpoint | Notes |
 | --- | --- | --- |
@@ -354,16 +354,16 @@ Navidrome has no "radio" or "instant mix" endpoint. What it does offer, and what
 | Problem | Fix |
 | --- | --- |
 | "Unable to reach …" on login | Check the URL and port (`:4533`), that the server runs, and that the device is on the same network/VPN. For LAN servers type `192.168.x.x:4533` (http is assumed). |
-| "This address does not look like a Navidrome server" | You are pointing at a different service or a proxy path; use the same URL you open Navidrome's web UI with (Sonora strips `/app`). |
+| "This address does not look like a Navidrome server" | You are pointing at a different service or a proxy path; use the same URL you open Navidrome's web UI with (Overtone strips `/app`). |
 | Works in the browser but not in the desktop app on Windows/macOS | Some reverse proxies drop CORS headers — make sure `/rest/*` responses include `Access-Control-Allow-Origin`. |
 | Mixed content errors in the browser | An `https://` web deployment cannot call an `http://` server. Use HTTPS for the server or the desktop app. |
 | Android can't connect over http | Cleartext is enabled in `app.json` (`usesCleartextTraffic`); rebuild the dev client after changing native config. |
 | Lower quality settings have no effect | Transcoding requires ffmpeg on the server and a transcoding config in Navidrome. |
-| No "Popular" tracks / artist bios | Configure Last.fm (or Spotify) agents in Navidrome. Sonora falls back to your own play counts. |
+| No "Popular" tracks / artist bios | Configure Last.fm (or Spotify) agents in Navidrome. Overtone falls back to your own play counts. |
 | Playback stops in the background on Android | Rebuild the development build after installing — background playback needs the expo-audio config plugin (`enableBackgroundPlayback`). |
 | Downloads fail | The Navidrome user needs the download permission (`ND_ENABLEDOWNLOADS`). |
 | Stale data after server changes | Pull to refresh (mobile) or Settings → Storage → Clear cache. |
 
 ## License
 
-MIT for Sonora's own code. Third-party packages keep their licenses (see Settings → About).
+MIT for Overtone's own code. Third-party packages keep their licenses (see Settings → About).

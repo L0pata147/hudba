@@ -24,7 +24,7 @@ function StartRadio() {
       <View style={{ backgroundColor: t.surface, borderRadius: 16, padding: 18, gap: 10 }}>
         <RadioIcon color={t.accent} size={32} />
         <T variant="h1">Radio</T>
-        <T dim={1}>Pick a starting point and Sonora keeps playing similar music from your library — endlessly and without repeats.</T>
+        <T dim={1}>Pick a starting point and Overtone keeps playing similar music from your library — endlessly and without repeats.</T>
         {cur ? (
           <Button
             title={`Start from “${cur.song.title}”`}

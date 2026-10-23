@@ -1,5 +1,5 @@
 /**
- * Sonora design tokens.
+ * Overtone design tokens.
  *
  * Single source of truth for colors, spacing, radii, typography and motion.
  * The desktop app turns these into CSS custom properties (see

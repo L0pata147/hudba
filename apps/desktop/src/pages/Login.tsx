@@ -55,7 +55,7 @@ export function LoginPage() {
       <main className="animate-rise relative w-full max-w-[420px]">
         <div className="mb-9 flex flex-col items-center text-center">
           <LogoMark size={76} />
-          <h1 className="mt-5 font-display text-[2.6rem] leading-none font-extrabold tracking-tight">sonora</h1>
+          <h1 className="mt-5 font-display text-[2.6rem] leading-none font-extrabold tracking-tight">overtone</h1>
           <p className="mt-3 text-[15px] text-fg-2">Your music, your server. Sign in to your Navidrome.</p>
         </div>
         <form onSubmit={submit} noValidate className="flex flex-col gap-4" aria-describedby={error ? 'login-error' : undefined}>
@@ -120,7 +120,7 @@ export function LoginPage() {
           </Button>
         </form>
         <p className="mt-8 text-center text-[12.5px] text-fg-3">
-          Your password is never stored. Sonora keeps only a salted token for the Subsonic API.
+          Your password is never stored. Overtone keeps only a salted token for the Subsonic API.
         </p>
       </main>
     </div>

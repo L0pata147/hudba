@@ -1,8 +1,8 @@
 [package]
 name = "sonora"
 version = "0.1.0"
-description = "Sonora — a modern Navidrome client"
-authors = ["Sonora contributors"]
+description = "Overtone — a modern Navidrome client"
+authors = ["Overtone contributors"]
 license = "MIT"
 edition = "2021"
 rust-version = "1.77"

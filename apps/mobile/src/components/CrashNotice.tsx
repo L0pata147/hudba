@@ -34,7 +34,7 @@ function Report({ title, text, actions }: { title: string; text: string; actions
   );
 }
 
-const share = (text: string) => void Share.share({ message: `Sonora crash report\n\n${text}` }).catch(() => undefined);
+const share = (text: string) => void Share.share({ message: `Overtone crash report\n\n${text}` }).catch(() => undefined);
 
 /** "The app crashed last time" card, with the report to share. */
 export function CrashNotice() {
@@ -48,7 +48,7 @@ export function CrashNotice() {
       style={{ position: 'absolute', left: 12, right: 12, top: insets.top + 8, zIndex: 60, padding: 14, borderRadius: 14, backgroundColor: t.surfaceActive, elevation: 10 }}
     >
       <Report
-        title="Sonora closed unexpectedly last time"
+        title="Overtone closed unexpectedly last time"
         text={text}
         actions={[
           { label: 'Dismiss', onPress: dismiss },

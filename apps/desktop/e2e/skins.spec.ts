@@ -33,7 +33,7 @@ test('skins restyle the whole app and are remembered', async ({ page }) => {
   await page.reload();
   await expect(root).toHaveAttribute('data-skin', 'luna');
 
-  await page.getByRole('radio', { name: 'Sonora', exact: true }).click();
+  await page.getByRole('radio', { name: 'Overtone', exact: true }).click();
   await expect(root).toHaveAttribute('data-skin', 'sonora');
   expect(await bg()).toBe(before);
 });
@@ -52,7 +52,7 @@ test('classic mode takes over the queue in Winamp and hands it back', async ({ p
   await page.getByRole('button', { name: 'Classic mode (Winamp)' }).click();
   await expect(page.getByTestId('classic-mode')).toBeVisible();
   await expect(page.locator('#webamp #main-window')).toBeVisible({ timeout: 15_000 });
-  // Sonora pauses while Winamp plays the same queue.
+  // Overtone pauses while Winamp plays the same queue.
   await expect(player).toHaveAttribute('data-status', 'paused');
   await expect(page.locator('#webamp #playlist-window')).toContainText(/1\.\s/);
 
@@ -63,7 +63,7 @@ test('classic mode takes over the queue in Winamp and hands it back', async ({ p
   await expect(page.getByLabel('Background picture', { exact: true })).not.toHaveValue('');
   await page.getByLabel('Picture animation').selectOption('pulse');
 
-  await page.getByRole('button', { name: 'Back to Sonora' }).click();
+  await page.getByRole('button', { name: 'Back to Overtone' }).click();
   await expect(page.getByTestId('classic-mode')).toHaveCount(0);
   await expect(page.locator('#webamp')).toHaveCount(0);
   await expect(player).toHaveAttribute('data-status', 'playing', { timeout: 10_000 });

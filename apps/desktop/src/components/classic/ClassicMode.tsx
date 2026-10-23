@@ -18,7 +18,7 @@ import { ClassicBackdrop } from './ClassicBackdrop';
 
 const MUSEUM = 'https://skins.webamp.org/';
 
-/** Continue in Sonora at the track and time classic mode stopped at. */
+/** Continue in Overtone at the track and time classic mode stopped at. */
 function handBack(uid: string, otherTrack: boolean, time: number, playing: boolean) {
   const player = playerStore.getState();
   if (!otherTrack && !playing) {
@@ -38,7 +38,7 @@ function handBack(uid: string, otherTrack: boolean, time: number, playing: boole
   const timer = setTimeout(unsub, 8000);
 }
 
-/** Webamp's redux state, as far as we read it to hand playback back to Sonora. */
+/** Webamp's redux state, as far as we read it to hand playback back to Overtone. */
 interface WebampState {
   playlist: { currentTrack: number | null; trackOrder: number[] };
   media: { timeElapsed: number };
@@ -47,7 +47,7 @@ interface WebampState {
 /**
  * Classic mode: the queue plays in a faithful Winamp 2.x (Webamp) with its
  * main window, equalizer and playlist, and real .wsz skins. Opening it hands
- * the current queue, track and position over from Sonora; closing hands them
+ * the current queue, track and position over from Overtone; closing hands them
  * back. Loaded skins are kept in IndexedDB.
  */
 export default function ClassicMode() {
@@ -68,7 +68,7 @@ export default function ClassicMode() {
     return u;
   };
 
-  /** Hand playback back to Sonora and leave. */
+  /** Hand playback back to Overtone and leave. */
   const exit = useCallback(() => setOpen(false), [setOpen]);
 
   useEffect(() => {
@@ -112,7 +112,7 @@ export default function ClassicMode() {
       if (disposed || !items.length) return;
       webamp.setCurrentTrack(startIndex);
       if (startAt > 1 || wasPlaying) {
-        // Start the track, jump to where Sonora was, then pause again if Sonora was paused.
+        // Start the track, jump to where Overtone was, then pause again if Overtone was paused.
         webamp.play();
         const until = Date.now() + 8000;
         while (!disposed && webamp.getMediaStatus() !== 'PLAYING' && Date.now() < until) await new Promise((r) => setTimeout(r, 100));
@@ -130,7 +130,7 @@ export default function ClassicMode() {
       const w = webampRef.current;
       webampRef.current = null;
       if (w) {
-        // Hand the track and position back to Sonora.
+        // Hand the track and position back to Overtone.
         const state = (w as unknown as { store: { getState(): WebampState } }).store.getState();
         const order = state.playlist.trackOrder;
         const index = state.playlist.currentTrack == null ? -1 : order.indexOf(state.playlist.currentTrack);
@@ -238,7 +238,7 @@ export default function ClassicMode() {
           Get skins <ExternalLink className="size-3.5" />
         </button>
         <button type="button" onClick={exit} className="flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 font-semibold text-black hover:bg-white/85">
-          <X className="size-4" /> Back to Sonora
+          <X className="size-4" /> Back to Overtone
         </button>
         <input
           ref={fileRef}

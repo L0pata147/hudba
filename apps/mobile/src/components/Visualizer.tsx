@@ -364,7 +364,7 @@ export function Visualizer({ song, immersive, onImmersive }: { song: Song; immer
         {supported && (permission === 'ask' || permission === 'blocked') && (
           <View style={styles.note}>
             <T style={{ color: '#fff', fontSize: 13, textAlign: 'center' }}>
-              Android only lets apps see the playing sound with the microphone permission. Sonora never records anything.
+              Android only lets apps see the playing sound with the microphone permission. Overtone never records anything.
             </T>
             <Pressable onPress={requestPermission} accessibilityRole="button" style={[styles.allow, { backgroundColor: t.accent }]}>
               <T style={{ color: t.onAccent, fontWeight: '700' }}>{permission === 'blocked' ? 'Open settings' : 'Allow'}</T>

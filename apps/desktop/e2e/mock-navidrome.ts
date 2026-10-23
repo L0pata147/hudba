@@ -2,7 +2,7 @@ import type { Page, Route } from '@playwright/test';
 
 /**
  * In-memory Subsonic/Navidrome server for E2E tests, installed with
- * `page.route`. It implements the subset of endpoints Sonora uses and keeps
+ * `page.route`. It implements the subset of endpoints Overtone uses and keeps
  * state (playlists, stars, play queue) so flows can be verified end to end.
  * Set SONORA_E2E_SERVER to run the same tests against a real Navidrome.
  */

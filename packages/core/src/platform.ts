@@ -49,7 +49,7 @@ export function createMemoryStorage(): KeyValueStorage & { dump(): Record<string
 let config: PlatformConfig = {
   storage: createMemoryStorage(),
   secureStorage: createMemoryStorage(),
-  clientName: 'Sonora',
+  clientName: 'Overtone',
   platform: 'web',
 };
 

@@ -28,8 +28,8 @@ fn set_tray_state(app: tauri::AppHandle, title: Option<String>, playing: bool) {
     {
         if let Some(tray) = app.tray_by_id("main") {
             let tip = match title {
-                Some(t) if !t.is_empty() => format!("Sonora — {t}"),
-                _ => "Sonora".to_string(),
+                Some(t) if !t.is_empty() => format!("Overtone — {t}"),
+                _ => "Overtone".to_string(),
             };
             let _ = tray.set_tooltip(Some(tip));
         }
@@ -50,19 +50,19 @@ fn show_main(app: &AppHandle) {
     }
 }
 
-/// Tray icon: left click shows Sonora; the menu controls playback (handled by the web layer
+/// Tray icon: left click shows Overtone; the menu controls playback (handled by the web layer
 /// through the "tray" event), shows the window or quits.
 #[cfg(desktop)]
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     let play = MenuItem::with_id(app, "play", "Play", true, None::<&str>)?;
     let previous = MenuItem::with_id(app, "previous", "Previous", true, None::<&str>)?;
     let next = MenuItem::with_id(app, "next", "Next", true, None::<&str>)?;
-    let show = MenuItem::with_id(app, "show", "Show Sonora", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Quit Sonora", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Show Overtone", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit Overtone", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
     let menu = Menu::with_items(app, &[&play, &previous, &next, &separator, &show, &quit])?;
     let mut builder = TrayIconBuilder::with_id("main")
-        .tooltip("Sonora")
+        .tooltip("Overtone")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
@@ -85,11 +85,11 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Desktop shell for the Sonora web UI.
+/// Desktop shell for the Overtone web UI.
 ///
 /// All Navidrome communication, playback and caching happen in the web layer
 /// (shared with the browser build). The native side adds window-state
-/// persistence and single-instance behaviour (launching Sonora again focuses
+/// persistence and single-instance behaviour (launching Overtone again focuses
 /// the running window instead of starting a second player), opening links in
 /// the system browser, self-updates from the GitHub "Latest build" release and
 /// a tray icon (closing the window can keep the music playing in the tray).
@@ -134,5 +134,5 @@ pub fn run() {
             let _ = (window, event);
         })
         .run(tauri::generate_context!())
-        .expect("error while running Sonora");
+        .expect("error while running Overtone");
 }

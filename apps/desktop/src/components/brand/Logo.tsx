@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import clsx from 'clsx';
 
-/** Sonora mark: an open ring ("sound wave in orbit") around a solid core. */
+/** Overtone mark: an open ring ("sound wave in orbit") around a solid core. */
 export function LogoMark({ size = 32, className }: { size?: number; className?: string }) {
   const id = useId();
   return (
@@ -32,7 +32,7 @@ export function Logo({ collapsed = false, className }: { collapsed?: boolean; cl
   return (
     <div className={clsx('flex items-center gap-2.5 select-none', className)}>
       <LogoMark size={30} />
-      {!collapsed && <span className="font-display text-[1.35rem] font-extrabold tracking-tight">sonora</span>}
+      {!collapsed && <span className="font-display text-[1.35rem] font-extrabold tracking-tight">overtone</span>}
     </div>
   );
 }

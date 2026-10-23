@@ -1,6 +1,6 @@
 /**
  * Raw Subsonic / OpenSubsonic response shapes as returned by Navidrome with
- * `f=json`. Only the fields Sonora uses are declared. Everything is optional
+ * `f=json`. Only the fields Overtone uses are declared. Everything is optional
  * because servers differ in what they return.
  */
 

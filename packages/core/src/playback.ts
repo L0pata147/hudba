@@ -120,7 +120,7 @@ export function startQueueSync(delayMs = 4000): () => void {
 
 /**
  * If this device has no local queue, restore the queue saved on the server
- * (e.g. from another Sonora instance or the Navidrome web UI).
+ * (e.g. from another Overtone instance or the Navidrome web UI).
  */
 export async function restoreQueueFromServer(): Promise<boolean> {
   const nd = tryGetNavidrome();

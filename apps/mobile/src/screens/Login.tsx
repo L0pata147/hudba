@@ -78,7 +78,7 @@ export default function LoginScreen() {
           <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 48, gap: 18 }} keyboardShouldPersistTaps="handled">
             <View style={{ alignItems: 'center', marginBottom: 12 }}>
               <LogoMark />
-              <T variant="display" style={{ marginTop: 14 }}>sonora</T>
+              <T variant="display" style={{ marginTop: 14 }}>overtone</T>
               <T dim={1} style={{ marginTop: 6, textAlign: 'center' }}>Your music, your server. Sign in to your Navidrome.</T>
             </View>
             <Field label="Server URL" placeholder="https://music.example.com" autoCapitalize="none" autoCorrect={false} keyboardType="url" value={serverUrl} onChangeText={setServerUrl} textContentType="URL" />

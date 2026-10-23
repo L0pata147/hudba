@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Sonora",
+  "productName": "Overtone",
   "version": "0.1.0",
   "identifier": "app.sonora.desktop",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Sonora",
+        "title": "Overtone",
         "width": 1320,
         "height": 860,
         "minWidth": 900,
@@ -39,7 +39,7 @@
     "targets": "all",
     "category": "Music",
     "shortDescription": "Music player for Navidrome",
-    "longDescription": "Sonora is a modern, artwork-first music player for your self-hosted Navidrome server.",
+    "longDescription": "Overtone is a modern, artwork-first music player for your self-hosted Navidrome server.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -20,7 +20,7 @@ describe('session store (authentication)', () => {
   const storage = createMemoryStorage();
 
   beforeEach(() => {
-    configurePlatform({ storage, secureStorage: secure, clientName: 'Sonora-test' });
+    configurePlatform({ storage, secureStorage: secure, clientName: 'Overtone-test' });
     sessionStore.setState({ session: null });
     recentServersStore.setState({ servers: [] });
   });
@@ -35,7 +35,7 @@ describe('session store (authentication)', () => {
     expect(persisted).not.toContain('s3cret');
     expect(JSON.stringify(storage.dump())).not.toContain(session.credentials.token);
     expect(recentServersStore.getState().servers[0]).toMatchObject({ url: 'https://music.example.com', username: 'ana' });
-    expect(getNavidrome().media.streamUrl('x')).toContain('c=Sonora-test');
+    expect(getNavidrome().media.streamUrl('x')).toContain('c=Overtone-test');
   });
 
   it('keeps the user logged out on wrong credentials', async () => {
