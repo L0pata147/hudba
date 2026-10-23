@@ -12,7 +12,7 @@ export function normalizeIntensity(v: unknown): number {
 
 export const DEFAULT_PREFERENCES: Preferences = {
   theme: 'dark',
-  accent: 'ember',
+  accent: 'overtone',
   compactMode: false,
   sidebarCollapsed: false,
   libraryView: 'grid',
@@ -49,7 +49,12 @@ export const preferencesStore = createStore<PreferencesState>()(
     }),
     {
       name: 'sonora.preferences',
-      version: 1,
+      version: 2,
+      // v2: the default accent became Overtone blue (matching the new logo); the old default moves along once.
+      migrate: (persisted, version) => {
+        const p = (persisted ?? {}) as Partial<Preferences>;
+        return (version < 2 && p.accent === 'ember' ? { ...p, accent: 'overtone' } : p) as PreferencesState;
+      },
       storage: createJSONStorage(() => lazyStorage),
       skipHydration: true,
       partialize: ({ set: _set, reset: _reset, ...prefs }) => prefs,

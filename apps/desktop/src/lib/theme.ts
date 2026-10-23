@@ -43,7 +43,7 @@ export function applyTheme(theme: ThemeMode, accent: AccentColor, compact: boole
     delete root.dataset.uppercase;
     const resolved = theme === 'system' ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : theme;
     root.dataset.theme = resolved;
-    const a = accents[accent] ?? accents.ember;
+    const a = accents[accent] ?? accents.overtone;
     root.style.setProperty('--accent', a.base);
     root.style.setProperty('--accent-strong', a.strong);
     root.style.setProperty('--accent-on', a.on);

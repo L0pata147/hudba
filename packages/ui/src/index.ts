@@ -42,6 +42,7 @@ export interface AccentSwatch {
 }
 
 export const accents: Record<AccentColor, AccentSwatch> = {
+  overtone: { name: 'Overtone blue', base: '#5C9BFF', strong: '#7FB2FF', on: '#04122B', soft: 'rgba(92,155,255,0.16)' },
   ember: { name: 'Ember', base: '#FF7A45', strong: '#FF905F', on: '#1A0B04', soft: 'rgba(255,122,69,0.16)' },
   aqua: { name: 'Aqua', base: '#2BD9C4', strong: '#52E6D4', on: '#03201C', soft: 'rgba(43,217,196,0.16)' },
   violet: { name: 'Violet', base: '#9D7BFF', strong: '#B39AFF', on: '#140A33', soft: 'rgba(157,123,255,0.18)' },
@@ -50,7 +51,7 @@ export const accents: Record<AccentColor, AccentSwatch> = {
   gold: { name: 'Gold', base: '#FFC940', strong: '#FFD76E', on: '#2A1E00', soft: 'rgba(255,201,64,0.16)' },
 };
 
-export const DEFAULT_ACCENT: AccentColor = 'ember';
+export const DEFAULT_ACCENT: AccentColor = 'overtone';
 
 export interface ThemeColors {
   bg: string;

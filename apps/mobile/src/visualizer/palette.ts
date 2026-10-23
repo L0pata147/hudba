@@ -14,7 +14,7 @@ const hexToRgb = (hex: string): RGB => {
 };
 
 /** Accent colour plus a neighbouring hue, used until (or if) the artwork can't be read. */
-export function accentPalette(accentHex: string = accents.ember.base): [RGB, RGB] {
+export function accentPalette(accentHex: string = accents.overtone.base): [RGB, RGB] {
   const { h } = rgbToHsl(hexToRgb(accentHex));
   return [hslToRgb(h, 0.95, 0.6), hslToRgb((h + 50) % 360, 0.95, 0.62)];
 }

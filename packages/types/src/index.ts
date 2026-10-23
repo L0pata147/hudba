@@ -293,7 +293,7 @@ export interface HistoryEntry {
 
 export type ViewMode = 'grid' | 'list' | 'compact';
 export type ThemeMode = 'dark' | 'light' | 'system';
-export type AccentColor = 'ember' | 'aqua' | 'violet' | 'lime' | 'rose' | 'gold';
+export type AccentColor = 'overtone' | 'ember' | 'aqua' | 'violet' | 'lime' | 'rose' | 'gold';
 
 /** 10-band graphic equalizer (Winamp-style bands), gains in dB. */
 export interface EqualizerSettings {

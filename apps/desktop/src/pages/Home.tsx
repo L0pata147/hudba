@@ -54,7 +54,7 @@ function FavoritesTile({ count }: { count: number }) {
       to="/favorites"
       className="group relative flex h-16 items-center gap-3 overflow-hidden rounded-md bg-fg/[0.07] pr-3 transition-colors hover:bg-fg/[0.14]"
     >
-      <span className="flex size-16 shrink-0 items-center justify-center bg-gradient-to-br from-accent to-[#FF5C7A] text-on-accent">
+      <span className="flex size-16 shrink-0 items-center justify-center bg-gradient-to-br from-accent to-[#C25CFF] text-on-accent">
         <Heart className="size-6" fill="currentColor" />
       </span>
       <span className="min-w-0">

@@ -24,10 +24,10 @@
   --danger: #ff5c6c;
   --success: #3ddc97;
   --warning: #ffb547;
-  --accent: #ff7a45;
-  --accent-strong: #ff905f;
-  --accent-on: #1a0b04;
-  --accent-soft: rgba(255, 122, 69, 0.16);
+  --accent: #5c9bff;
+  --accent-strong: #7fb2ff;
+  --accent-on: #04122b;
+  --accent-soft: rgba(92, 155, 255, 0.16);
   --backdrop: 58, 44, 70;
   --shadow-card: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
   --shadow-pop: 0 18px 50px -12px rgba(0, 0, 0, 0.75);

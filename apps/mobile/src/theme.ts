@@ -33,7 +33,7 @@ export function useTheme() {
   }
   const light = mode === 'light' || (mode === 'system' && system === 'light');
   const c = light ? lightTheme : darkTheme;
-  const a = accents[accentName] ?? accents.ember;
+  const a = accents[accentName] ?? accents.overtone;
   return {
     ...c,
     accent: a.base,

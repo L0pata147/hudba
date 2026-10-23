@@ -46,7 +46,7 @@ export const SKINS: Skin[] = [
     description: 'The default look — uses your theme and accent colour.',
     mode: 'dark',
     colors: dark({ bg: '#08080B', bgElevated: '#0E0E13', surface: '#131319', surfaceHover: '#1E1E27', surfaceActive: '#26262F', textPrimary: '#F6F6FA', textSecondary: '#9A9AA8', textMuted: '#6E6E7C' }),
-    accent: { name: 'Ember', base: '#FF7A45', strong: '#FF905F', on: '#1A0B04', soft: 'rgba(255,122,69,0.16)' },
+    accent: { name: 'Overtone blue', base: '#5C9BFF', strong: '#7FB2FF', on: '#04122B', soft: 'rgba(92,155,255,0.16)' },
     font: 'sans',
     displayFont: 'sans',
     radius: 1,
