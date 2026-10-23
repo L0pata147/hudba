@@ -1,14 +1,15 @@
 import { NavLink, useNavigate } from 'react-router';
 import clsx from 'clsx';
-import { Heart, History, Home, Library, ListMusic, PanelLeftClose, PanelLeftOpen, Plus, Radio, Search, Settings, DownloadCloud } from 'lucide-react';
-import { preferencesStore, usePlaylists, usePreferences, useContextPlayState } from '@sonora/core';
+import { Heart, History, Home, Library, ListMusic, PanelLeftClose, PanelLeftOpen, Plus, Radio, Search, Settings, DownloadCloud, Sparkles } from 'lucide-react';
+import { preferencesStore, usePlaylists, usePreferences, useContextPlayState, useSmartPlaylists, type SmartPlaylist } from '@sonora/core';
 import type { Playlist } from '@sonora/types';
 import { Logo } from '../brand/Logo';
 import { IconButton } from '../ui/Button';
 import { Artwork } from '../ui/Artwork';
 import { Equalizer } from '../ui/PlayButton';
 import { Skeleton } from '../ui/Skeleton';
-import { useUi } from '../../lib/ui-store';
+import { openMenuFrom, useUi } from '../../lib/ui-store';
+import { SmartArt } from '../media/SmartArt';
 import { useItemMenus } from '../../lib/actions';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 
@@ -57,13 +58,43 @@ function PlaylistLink({ playlist, collapsed }: { playlist: Playlist; collapsed: 
   );
 }
 
+function SmartLink({ playlist, collapsed }: { playlist: SmartPlaylist; collapsed: boolean }) {
+  const { isCurrent, isPlaying } = useContextPlayState('smart', playlist.id);
+  const openDialog = useUi((s) => s.openDialog);
+  return (
+    <NavLink
+      to={`/smart/${playlist.id}`}
+      title={playlist.name}
+      onContextMenu={(e) => openMenuFrom(e, [{ id: 'edit', label: 'Edit rules', onSelect: () => openDialog({ type: 'smart-playlist', id: playlist.id }) }])}
+      className={({ isActive }) =>
+        clsx('flex items-center gap-3 rounded-md p-1.5 transition-colors hover:bg-surface-hover', isActive && 'bg-surface-hover', collapsed && 'justify-center')
+      }
+    >
+      <SmartArt className="size-10 shrink-0 rounded-sm [&>svg]:size-5" />
+      {!collapsed && (
+        <div className="min-w-0 flex-1">
+          <div className={clsx('truncate text-[14px] font-medium', isCurrent ? 'text-accent' : 'text-fg')}>{playlist.name}</div>
+          <div className="truncate text-[12.5px] text-fg-3">Smart playlist</div>
+        </div>
+      )}
+      {!collapsed && isCurrent && <Equalizer paused={!isPlaying} className="mr-2" />}
+    </NavLink>
+  );
+}
+
 export function Sidebar() {
   const preferCollapsed = usePreferences((s) => s.sidebarCollapsed);
   // Tablets / narrow windows always get the compact rail.
   const narrow = useMediaQuery('(max-width: 1023px)');
   const collapsed = preferCollapsed || narrow;
   const playlists = usePlaylists();
+  const smart = useSmartPlaylists((s) => s.playlists);
   const openDialog = useUi((s) => s.openDialog);
+  const createMenu = (e: React.MouseEvent) =>
+    openMenuFrom(e, [
+      { id: 'playlist', label: 'Playlist', icon: <ListMusic />, onSelect: () => openDialog({ type: 'create-playlist' }) },
+      { id: 'smart', label: 'Smart playlist', icon: <Sparkles />, onSelect: () => openDialog({ type: 'smart-playlist' }) },
+    ]);
   const navigate = useNavigate();
   return (
     <aside
@@ -92,7 +123,7 @@ export function Sidebar() {
             {collapsed ? <PanelLeftOpen className="size-[18px]" /> : <PanelLeftClose className="size-[18px]" />}
           </IconButton>}
           {!collapsed && <span className="flex-1 text-[14px] font-bold text-fg-2">Your Library</span>}
-          <IconButton label="Create playlist" size="sm" variant="solid" onClick={() => openDialog({ type: 'create-playlist' })}>
+          <IconButton label="Create playlist" size="sm" variant="solid" onClick={createMenu}>
             <Plus className="size-[18px]" />
           </IconButton>
         </div>
@@ -104,6 +135,9 @@ export function Sidebar() {
         </div>
         <div className="mx-4 h-px bg-line" />
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2" aria-label="Your playlists">
+          {smart.map((p) => (
+            <SmartLink key={p.id} playlist={p} collapsed={collapsed} />
+          ))}
           {playlists.isPending ? (
             Array.from({ length: 4 }, (_, i) => (
               <div key={i} className="flex items-center gap-3 p-1.5">
@@ -111,8 +145,8 @@ export function Sidebar() {
                 {!collapsed && <Skeleton className="h-3 flex-1" />}
               </div>
             ))
-          ) : playlists.data?.length ? (
-            playlists.data.map((p) => <PlaylistLink key={p.id} playlist={p} collapsed={collapsed} />)
+          ) : playlists.data?.length || smart.length ? (
+            playlists.data?.map((p) => <PlaylistLink key={p.id} playlist={p} collapsed={collapsed} />)
           ) : (
             !collapsed && (
               <div className="m-2 rounded-md bg-surface p-4">

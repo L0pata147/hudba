@@ -149,6 +149,8 @@ export interface Song {
   contentType?: string;
   playCount?: number;
   lastPlayed?: string;
+  /** When the song was added to the library (ISO date). */
+  created?: string;
   starred: boolean;
   starredAt?: string;
   replayGain?: {
@@ -245,7 +247,7 @@ export type RepeatMode = 'off' | 'all' | 'one';
 
 /** Where a queue item came from — used for "Playing from …" labels. */
 export interface PlaybackContext {
-  type: 'album' | 'artist' | 'playlist' | 'favorites' | 'search' | 'songs' | 'genre' | 'queue' | 'radio';
+  type: 'album' | 'artist' | 'playlist' | 'smart' | 'favorites' | 'search' | 'songs' | 'genre' | 'queue' | 'radio';
   id?: ID;
   name?: string;
 }
@@ -351,6 +353,8 @@ export interface Preferences {
   skin: string;
   /** Desktop: check GitHub for a new version at start-up. */
   autoUpdate: boolean;
+  /** Desktop: closing the window keeps Sonora playing in the tray. */
+  closeToTray: boolean;
 }
 
 /* ------------------------------------------------------------------ */

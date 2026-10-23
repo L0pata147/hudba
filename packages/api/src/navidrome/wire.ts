@@ -85,6 +85,7 @@ export interface WireSong {
   contentType?: string;
   playCount?: number;
   played?: string;
+  created?: string;
   starred?: string;
   isDir?: boolean;
   type?: string;

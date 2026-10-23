@@ -28,6 +28,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   visualizerIntensity: 0.7,
   skin: 'sonora',
   autoUpdate: true,
+  closeToTray: true,
 };
 
 export interface PreferencesState extends Preferences {

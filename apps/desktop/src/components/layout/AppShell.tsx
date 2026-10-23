@@ -18,6 +18,8 @@ import { QueuePanel } from '../player/QueuePanel';
 import { Sheet } from '../ui/Dialog';
 import { Dialogs } from '../dialogs/Dialogs';
 import { AlertTriangle } from 'lucide-react';
+import { useMiniMode } from '../../lib/mini-mode';
+import { MiniWindow } from '../player/MiniWindow';
 
 function InsecureBanner() {
   const insecure = useSession((s) => s.insecureConnection);
@@ -45,6 +47,7 @@ export function AppShell() {
   const queueOpen = useUi((s) => s.queueOpen);
   const classicOpen = useClassicMode((s) => s.open);
   const setQueueOpen = useUi((s) => s.setQueueOpen);
+  const mini = useMiniMode((s) => s.on);
   useKeyboardShortcuts();
 
   // Reset scroll on navigation, like a normal page load.
@@ -73,6 +76,8 @@ export function AppShell() {
       </div>
     </main>
   );
+
+  if (mini) return <MiniWindow />;
 
   return (
     <ScrollContext.Provider value={scrollRef}>

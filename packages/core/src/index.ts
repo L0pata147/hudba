@@ -17,3 +17,4 @@ export * from './bootstrap';
 export * from './visualizer';
 export * from './visualizer-styles';
 export * from './visualizer-scenes';
+export * from './smart-playlists';

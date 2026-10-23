@@ -200,7 +200,7 @@ test('visualizer: toggles with V, animates with the music and is remembered', as
 
 test('visualizer styles: every style draws, menu and arrow keys switch, the choice is remembered', async ({ page, isMobile }) => {
   test.skip(isMobile, 'desktop run covers it');
-  test.setTimeout(120_000);
+  test.setTimeout(240_000); // 20 styles, many of them heavy WebGL scenes in a software renderer
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   if (!real) await installMockNavidrome(page);

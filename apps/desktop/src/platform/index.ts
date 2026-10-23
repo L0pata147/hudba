@@ -24,6 +24,7 @@ export async function initPlatform(): Promise<void> {
   if (import.meta.env.DEV) (window as unknown as { __sonoraEngine?: HtmlAudioEngine }).__sonoraEngine = engine;
   startMediaSession();
   startQueueSync();
+  if (isTauri) void import('./desktop-shell').then((m) => m.startDesktopShell()).catch((err) => console.warn('desktop shell', err));
   // Save the queue position when the window closes so the server copy is fresh.
   window.addEventListener('pagehide', () => {
     void import('@sonora/core').then((m) => m.saveQueueToServer());

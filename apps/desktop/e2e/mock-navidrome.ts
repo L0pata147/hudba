@@ -10,7 +10,7 @@ export const MOCK_SERVER = 'https://mock-navidrome.test';
 export const MOCK_USER = 'demo';
 export const MOCK_PASSWORD = 'demo-password';
 
-interface Song { id: string; title: string; album: string; albumId: string; artist: string; artistId: string; track: number; duration: number; coverArt: string; starred?: string }
+interface Song { id: string; title: string; album: string; albumId: string; artist: string; artistId: string; track: number; duration: number; coverArt: string; starred?: string; genre: string; playCount: number }
 
 const artists = [
   { id: 'ar1', name: 'Aurora Fields', albums: ['Northern Lines', 'Glass Rivers'] },
@@ -33,6 +33,8 @@ function buildLibrary() {
         track: t + 1,
         duration: 3,
         coverArt: `al-${id}`,
+        genre: 'Ambient',
+        playCount: (n * 7) % 5,
       }));
       albums.push({ id, name, artist: ar.name, artistId: ar.id, year: 2020 + ai, songs });
     });

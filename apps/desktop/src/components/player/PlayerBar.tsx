@@ -1,6 +1,8 @@
 import { Link } from 'react-router';
 import clsx from 'clsx';
-import { ChevronUp, ListMusic, Maximize2, MicVocal, Radio, SlidersVertical, Zap } from 'lucide-react';
+import { ChevronUp, ListMusic, Maximize2, MicVocal, PictureInPicture2, Radio, SlidersVertical, Zap } from 'lucide-react';
+import { isTauri } from '../../platform';
+import { useMiniMode } from '../../lib/mini-mode';
 import { useClassicMode } from '../../lib/classic-skins';
 import { useCurrentItem, usePlayer, usePreferences } from '@sonora/core';
 import { Artwork } from '../ui/Artwork';
@@ -80,6 +82,11 @@ export function PlayerBar() {
         <IconButton label="Classic mode (Winamp)" size="sm" onClick={() => useClassicMode.getState().setOpen(true)}>
           <Zap className="size-4" />
         </IconButton>
+        {isTauri && (
+          <IconButton label="Mini player (always on top)" size="sm" onClick={() => void useMiniMode.getState().enter()}>
+            <PictureInPicture2 className="size-4" />
+          </IconButton>
+        )}
         <IconButton label="Full screen player" size="sm" disabled={!song} onClick={() => setNowPlayingOpen(true)}>
           <Maximize2 className="size-4" />
         </IconButton>

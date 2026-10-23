@@ -119,6 +119,7 @@ export function mapSong(s: WireSong): Song {
     contentType: nonEmpty(s.contentType),
     playCount: s.playCount,
     lastPlayed: nonEmpty(s.played),
+    created: nonEmpty(s.created),
     starred: Boolean(s.starred),
     starredAt: nonEmpty(s.starred),
     replayGain: s.replayGain && Object.keys(s.replayGain).length ? s.replayGain : undefined,

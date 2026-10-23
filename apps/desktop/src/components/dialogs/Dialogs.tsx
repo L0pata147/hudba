@@ -12,6 +12,7 @@ import { Artwork } from '../ui/Artwork';
 import { Skeleton } from '../ui/Skeleton';
 import { useUi } from '../../lib/ui-store';
 import { EqualizerDialog } from '../player/Equalizer';
+import { SmartPlaylistDialog } from './SmartPlaylistDialog';
 
 function AddToPlaylistDialog({ songs, onClose }: { songs: Song[]; onClose: () => void }) {
   const playlists = usePlaylists();
@@ -125,6 +126,8 @@ export function Dialogs() {
       return <PlaylistFormDialog playlist={dialog.playlist} onClose={close} />;
     case 'equalizer':
       return <EqualizerDialog onClose={close} />;
+    case 'smart-playlist':
+      return <SmartPlaylistDialog id={dialog.id} onClose={close} />;
     case 'confirm':
       return (
         <Dialog

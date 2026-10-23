@@ -247,6 +247,12 @@ export function SettingsPage() {
               )}
             </Row>
             <Switch label="Check for updates at start-up" checked={prefs.autoUpdate} onChange={(v) => set('autoUpdate', v)} />
+            <Switch
+              label="Keep playing in the tray when the window is closed"
+              description="Closing the window hides Sonora next to the clock; quit from the tray icon's menu."
+              checked={prefs.closeToTray}
+              onChange={(v) => set('closeToTray', v)}
+            />
           </>
         )}
         <Row

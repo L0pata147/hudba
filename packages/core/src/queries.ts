@@ -60,6 +60,7 @@ export const keys = {
   songsInfinite: (scope: string, genre?: string) => ['songs-infinite', scope, genre ?? ''] as const,
   random: (scope: string, size: number) => ['random', scope, size] as const,
   lyrics: (scope: string, id: string) => ['lyrics', scope, id] as const,
+  librarySongs: (scope: string) => ['library-songs', scope] as const,
 };
 
 const enabled = () => Boolean(sessionStore.getState().session);
@@ -174,6 +175,27 @@ export function useInfiniteSongs(opts: { genre?: string } = {}) {
     initialPageParam: 0,
     getNextPageParam: (last, pages) => (last.length < 200 ? undefined : pages.length * 200),
     enabled: enabled(),
+  });
+}
+
+/** Pages through the whole library (smart playlists pick from it); refreshed every 10 minutes. */
+export async function fetchLibrarySongs(signal?: AbortSignal, limit = 100_000): Promise<Song[]> {
+  const out: Song[] = [];
+  for (let offset = 0; offset < limit; offset += 500) {
+    const page = await getNavidrome().songs.list({ count: 500, offset }, { signal });
+    out.push(...page);
+    if (page.length < 500) break;
+  }
+  return out;
+}
+
+export function useLibrarySongs(enabledHere = true) {
+  const scope = useScope();
+  return useQuery({
+    queryKey: keys.librarySongs(scope),
+    queryFn: ({ signal }) => fetchLibrarySongs(signal),
+    enabled: enabled() && enabledHere,
+    staleTime: 10 * 60_000,
   });
 }
 
