@@ -1,6 +1,6 @@
-import { ExternalLink, MoreHorizontal, Pencil, Plus, RadioTower, Trash2 } from 'lucide-react';
+import { Download, ExternalLink, MoreHorizontal, Pencil, Plus, RadioTower, Trash2 } from 'lucide-react';
 import type { InternetRadioStation } from '@sonora/types';
-import { playerStore, playStation, usePlayer, useRadioStationMutations, useRadioStations, useSession } from '@sonora/core';
+import { CZECH_STATIONS, playerStore, playStation, toast, usePlayer, useRadioStationMutations, useRadioStations, useSession } from '@sonora/core';
 import { Button, IconButton } from '../ui/Button';
 import { Skeleton } from '../ui/Skeleton';
 import { Equalizer } from '../ui/PlayButton';
@@ -93,6 +93,14 @@ export function InternetRadioSection() {
   const stations = useRadioStations();
   const admin = useSession((s) => s.session?.user.isAdmin ?? false);
   const openDialog = useUi((s) => s.openDialog);
+  const { addMany } = useRadioStationMutations();
+  const have = new Set((stations.data ?? []).map((s) => s.streamUrl));
+  const missingCzech = CZECH_STATIONS.filter((s) => !have.has(s.streamUrl)).length;
+  const addCzech = () =>
+    addMany.mutate(
+      { existing: stations.data ?? [], wanted: CZECH_STATIONS },
+      { onSuccess: (n) => toast.success(`Added ${n} Czech station${n === 1 ? '' : 's'}`) },
+    );
   return (
     <section aria-label="Internet radio">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -101,9 +109,16 @@ export function InternetRadioSection() {
           <p className="text-[13px] text-fg-2">Live stations saved on your server.</p>
         </div>
         {admin && (
-          <Button size="sm" variant="outline" icon={<Plus className="size-4" />} onClick={() => openDialog({ type: 'radio-station' })}>
-            Add station
-          </Button>
+          <div className="flex flex-wrap justify-end gap-2">
+            {stations.isSuccess && missingCzech > 0 && (
+              <Button size="sm" variant="ghost" icon={<Download className="size-4" />} disabled={addMany.isPending} onClick={addCzech}>
+                {addMany.isPending ? 'Adding…' : `Add Czech radios (${missingCzech})`}
+              </Button>
+            )}
+            <Button size="sm" variant="outline" icon={<Plus className="size-4" />} onClick={() => openDialog({ type: 'radio-station' })}>
+              Add station
+            </Button>
+          </div>
         )}
       </div>
       {stations.isPending ? (

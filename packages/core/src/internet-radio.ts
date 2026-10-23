@@ -54,5 +54,46 @@ export function useRadioStationMutations() {
     create: useMutation({ mutationFn: (input: RadioStationInput) => getNavidrome().radios.create(input), onSuccess: done, onError }),
     update: useMutation({ mutationFn: ({ id, input }: { id: string; input: RadioStationInput }) => getNavidrome().radios.update(id, input), onSuccess: done, onError }),
     remove: useMutation({ mutationFn: (id: string) => getNavidrome().radios.remove(id), onSuccess: done, onError }),
+    addMany: useMutation({
+      mutationFn: ({ existing, wanted }: { existing: readonly InternetRadioStation[]; wanted: readonly RadioStationInput[] }) => addMissingStations(existing, wanted),
+      // some may have been added before a failure
+      onSettled: done,
+      onError,
+    }),
   };
+}
+
+/** Popular Czech stations (streams checked by radio-browser.info), added with one click on the Radio page. */
+export const CZECH_STATIONS: RadioStationInput[] = [
+  { name: 'ČRo Radiožurnál', streamUrl: 'https://rozhlas.stream/radiozurnal_aac_128.aac', homePageUrl: 'https://radiozurnal.rozhlas.cz/' },
+  { name: 'ČRo Radiožurnál Sport', streamUrl: 'https://rozhlas.stream/radiozurnal_sport_high.aac', homePageUrl: 'https://sport.rozhlas.cz/' },
+  { name: 'ČRo Dvojka', streamUrl: 'http://icecast6.play.cz/cro2-128.mp3', homePageUrl: 'https://dvojka.rozhlas.cz/' },
+  { name: 'ČRo Vltava', streamUrl: 'http://icecast5.play.cz/cro3-128.mp3', homePageUrl: 'https://vltava.rozhlas.cz/' },
+  { name: 'ČRo Jazz (FLAC)', streamUrl: 'http://amp.cesnet.cz:8000/cro-jazz.flac', homePageUrl: 'https://jazz.rozhlas.cz/' },
+  { name: 'ČRo D-dur (FLAC)', streamUrl: 'http://amp.cesnet.cz:8000/cro-d-dur.flac', homePageUrl: 'https://d-dur.rozhlas.cz/' },
+  { name: 'Evropa 2', streamUrl: 'https://ice.actve.net/fm-evropa2-128', homePageUrl: 'https://www.evropa2.cz/' },
+  { name: 'Evropa 2 Flashback', streamUrl: 'https://ice.actve.net/web-e2-flashback', homePageUrl: 'https://www.evropa2.cz/' },
+  { name: 'Frekvence 1', streamUrl: 'https://playerservices.streamtheworld.com/api/livestream-redirect/FREKVENCE1.mp3', homePageUrl: 'https://www.frekvence1.cz/' },
+  { name: 'Kiss', streamUrl: 'https://icecast1.play.cz/kissdelta128.mp3', homePageUrl: 'https://www.kiss.cz/' },
+  { name: 'Rock Radio', streamUrl: 'https://playerservices.streamtheworld.com/api/livestream-redirect/ROCK_RADIO_128.mp3', homePageUrl: 'https://rockovyradio.cz/' },
+  { name: 'Rádio Beat', streamUrl: 'https://icecast2.play.cz/beat128aac', homePageUrl: 'https://www.radiobeat.cz/' },
+  { name: 'Rádio Blaník', streamUrl: 'https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO_BLANIK.aac?gdpr=0', homePageUrl: 'https://radioblanik.cz/' },
+  { name: 'Country Radio', streamUrl: 'http://icecast2.play.cz:8000/country128aac', homePageUrl: 'https://www.countryradio.cz/' },
+  { name: 'Oldies Rádio', streamUrl: 'http://ice.abradio.cz/oldiesradio128.mp3', homePageUrl: 'https://www.oldiesradio.cz/' },
+  { name: 'Hitrádio Osmdesátka', streamUrl: 'http://ice.abradio.cz/hit80128.mp3' },
+  { name: 'Impuls', streamUrl: 'https://stream.sepia.sk:8000/impuls128.mp3', homePageUrl: 'https://www.impuls.cz/' },
+  { name: 'Free Rádio Brno', streamUrl: 'http://icecast8.play.cz/freeradio128.mp3', homePageUrl: 'https://www.freeradio.cz/' },
+];
+
+/** Adds the stations the server doesn't have yet (same stream address); returns how many were added. */
+export async function addMissingStations(existing: readonly InternetRadioStation[], wanted: readonly RadioStationInput[]): Promise<number> {
+  const have = new Set(existing.map((s) => s.streamUrl.trim()));
+  let added = 0;
+  for (const s of wanted) {
+    if (have.has(s.streamUrl)) continue;
+    await getNavidrome().radios.create(s);
+    have.add(s.streamUrl);
+    added++;
+  }
+  return added;
 }

@@ -48,6 +48,12 @@ test('internet radio: play a station live, add and delete stations, back to the 
   await page.getByRole('dialog', { name: 'Delete station?' }).getByRole('button', { name: 'Delete' }).click();
   await expect(section.getByRole('button', { name: 'Play Second FM' })).toHaveCount(0);
 
+  // the Czech stations in one click, then the button is gone
+  await section.getByRole('button', { name: 'Add Czech radios (18)' }).click();
+  await expect(page.getByText('Added 18 Czech stations')).toBeVisible();
+  await expect(section.getByRole('button', { name: 'Play ČRo Radiožurnál', exact: true })).toBeVisible();
+  await expect(section.getByRole('button', { name: /Add Czech radios/ })).toHaveCount(0);
+
   // library songs play normally afterwards
   await page.goto(`/#/album/${albumId}`);
   await page.getByRole('button', { name: 'Play album' }).click();
