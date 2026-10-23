@@ -53,6 +53,40 @@ const SHORTCUTS: [string, string][] = [
   ['Q', 'Show queue'],
 ];
 
+/** "Start with Windows": the setting lives in the system (autostart entry), not in preferences. */
+function StartWithSystemSwitch() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    import('@tauri-apps/plugin-autostart')
+      .then((m) => m.isEnabled())
+      .then((v) => alive && setEnabled(v))
+      .catch(() => alive && setEnabled(false));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const change = async (v: boolean) => {
+    setEnabled(v);
+    try {
+      const m = await import('@tauri-apps/plugin-autostart');
+      await (v ? m.enable() : m.disable());
+      setEnabled(await m.isEnabled());
+    } catch (err) {
+      console.warn('autostart', err);
+      setEnabled(!v);
+    }
+  };
+  return (
+    <Switch
+      label="Start Overtone with Windows"
+      description="Starts hidden in the tray, ready to play."
+      checked={enabled ?? false}
+      onChange={(v) => void change(v)}
+    />
+  );
+}
+
 export function SettingsPage() {
   const prefs = usePreferences((s) => s);
   const session = useSession((s) => s.session);
@@ -253,6 +287,7 @@ export function SettingsPage() {
               checked={prefs.closeToTray}
               onChange={(v) => set('closeToTray', v)}
             />
+            <StartWithSystemSwitch />
           </>
         )}
         <Row

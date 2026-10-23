@@ -23,6 +23,7 @@ import { EmptyState } from '../components/ui/States';
 import { Equalizer, PlayButton } from '../components/ui/PlayButton';
 import { useDominantColor } from '../hooks/useDominantColor';
 import { startRadio, useItemMenus } from '../lib/actions';
+import { InternetRadioSection } from '../components/radio/InternetRadio';
 
 const VARIETY: { value: RadioVariety; label: string; icon: React.ReactNode; hint: string }[] = [
   { value: 'close', label: 'Familiar', icon: <Target />, hint: 'Stays very close to the seed.' },
@@ -78,7 +79,7 @@ function StartRadio() {
           Pick a song, album, artist, playlist or genre and Overtone keeps playing similar music from your library — endlessly, without repeats. You can
           also start Radio from any ⋯ menu.
         </p>
-        {cur && (
+        {cur && !cur.song.liveStreamUrl && (
           <Button
             variant="primary"
             className="mt-5"
@@ -91,6 +92,8 @@ function StartRadio() {
           </Button>
         )}
       </div>
+
+      <InternetRadioSection />
 
       {recent.length > 0 && (
         <section aria-label="From recently played">

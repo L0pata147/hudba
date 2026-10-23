@@ -20,6 +20,7 @@
     "core:window:allow-maximize",
     "core:window:allow-unmaximize",
     "updater:default",
+    "autostart:default",
     "process:allow-restart",
     "opener:default"
   ]

@@ -16,6 +16,7 @@ let engine: AudioEngine | null = null;
 let lastOfflineUrl: string | null = null;
 
 async function resolveSource(song: Song): Promise<string> {
+  if (song.liveStreamUrl) return song.liveStreamUrl;
   const rec = downloadsStore.getState().records[song.id];
   const adapter = platform().offline;
   if (rec?.status === 'done' && rec.location && adapter) {
@@ -36,12 +37,14 @@ export const playerStore = createPlayerStore({
   getCrossfade: () => preferencesStore.getState().crossfade,
   getPreload: () => preferencesStore.getState().gapless,
   onTrackStart(song, context) {
+    // internet radio: nothing to remember or scrobble
+    if (song.liveStreamUrl) return;
     historyStore.getState().record(song, context);
     if (!preferencesStore.getState().scrobble) return;
     tryGetNavidrome()?.scrobbling.nowPlaying(song.id).catch(() => undefined);
   },
   onTrackListened(song) {
-    if (!preferencesStore.getState().scrobble) return;
+    if (song.liveStreamUrl || !preferencesStore.getState().scrobble) return;
     tryGetNavidrome()?.scrobbling.submit(song.id).catch(() => undefined);
   },
   onError(message, song) {
@@ -92,6 +95,8 @@ function queueSignature(): string {
 export async function saveQueueToServer(): Promise<void> {
   const nd = tryGetNavidrome();
   if (!nd || !preferencesStore.getState().syncQueue) return;
+  // A live internet radio queue means nothing to other devices; keep the last saved one.
+  if (playerStore.getState().queue.items.some((i) => i.song.liveStreamUrl)) return;
   const sig = queueSignature();
   if (sig === lastSyncedSignature) return;
   const { queue, position } = playerStore.getState();

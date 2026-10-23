@@ -160,7 +160,7 @@ export function NowPlaying() {
                 <TransportControls size="lg" />
               </div>
               <div className="mt-4 mb-4 flex items-center justify-between">
-                <IconButton label="Lyrics" active={lyricsOpen} aria-pressed={lyricsOpen} onClick={() => { setLyricsOpen(!lyricsOpen); setPanel('none'); }}>
+                <IconButton label="Lyrics" active={lyricsOpen} aria-pressed={lyricsOpen} disabled={Boolean(song.liveStreamUrl)} onClick={() => { setLyricsOpen(!lyricsOpen); setPanel('none'); }}>
                   <MicVocal className="size-5" />
                 </IconButton>
                 {!isMobile && <VolumeControl />}

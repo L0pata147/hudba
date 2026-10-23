@@ -18,3 +18,4 @@ export * from './visualizer';
 export * from './visualizer-styles';
 export * from './visualizer-scenes';
 export * from './smart-playlists';
+export * from './internet-radio';

@@ -12,6 +12,7 @@ import { playQueueApi } from './playqueue';
 import { genresApi } from './genres';
 import { lyricsApi } from './lyrics';
 import { mediaApi } from './media';
+import { radiosApi } from './radios';
 import { mapUser } from './mappers';
 import type { SubsonicEnvelope, WireUser } from './wire';
 
@@ -54,6 +55,7 @@ export function createNavidromeClient(opts: NavidromeClientOptions) {
     genres: genresApi(http),
     lyrics: lyricsApi(http, (name) => extensions.has(name)),
     media: mediaApi(http),
+    radios: radiosApi(http),
     system: {
       async ping(req?: RequestOptions): Promise<void> {
         await http.request('ping', {}, req);
@@ -78,6 +80,7 @@ export { filterPlaylists, normalizeForSearch } from './search';
 export type { AlbumListOptions } from './albums';
 export type { PlaylistUpdate } from './playlists';
 export type { SearchOptions } from './search';
+export type { RadioStationInput } from './radios';
 export type { StarTarget } from './favorites';
 export type { StreamOptions } from './media';
 export type * from './wire';

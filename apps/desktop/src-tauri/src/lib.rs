@@ -9,6 +9,9 @@ use tauri::{
 };
 use tauri_plugin_window_state::StateFlags;
 
+#[cfg(windows)]
+mod thumbbar;
+
 /// Closing the main window hides it to the tray (music keeps playing) instead of quitting.
 static CLOSE_TO_TRAY: AtomicBool = AtomicBool::new(false);
 
@@ -36,6 +39,8 @@ fn set_tray_state(app: tauri::AppHandle, title: Option<String>, playing: bool) {
         if let Some(item) = app.try_state::<TrayPlayItem>() {
             let _ = item.0.set_text(if playing { "Pause" } else { "Play" });
         }
+        #[cfg(windows)]
+        thumbbar::set_playing(&app, playing);
     }
     #[cfg(not(desktop))]
     let _ = (app, title, playing);
@@ -92,7 +97,9 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
 /// persistence and single-instance behaviour (launching Overtone again focuses
 /// the running window instead of starting a second player), opening links in
 /// the system browser, self-updates from the GitHub "Latest build" release and
-/// a tray icon (closing the window can keep the music playing in the tray).
+/// a tray icon (closing the window can keep the music playing in the tray),
+/// starting with the system (hidden in the tray) and, on Windows, Previous /
+/// Play / Next buttons in the taskbar preview.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -116,7 +123,21 @@ pub fn run() {
             #[cfg(desktop)]
             {
                 app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+                // "Start with Windows" launches Overtone with --hidden: straight to the tray.
+                app.handle().plugin(tauri_plugin_autostart::init(
+                    tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+                    Some(vec!["--hidden"]),
+                ))?;
                 build_tray(app)?;
+                if let Some(window) = app.get_webview_window("main") {
+                    // before the first show: the buttons are added when the taskbar button appears
+                    #[cfg(windows)]
+                    thumbbar::install(app.handle(), &window);
+                    // The window starts invisible (tauri.conf.json) so a start to the tray doesn't flash it.
+                    if !std::env::args().any(|a| a == "--hidden") {
+                        let _ = window.show();
+                    }
+                }
             }
             #[cfg(not(desktop))]
             let _ = app;

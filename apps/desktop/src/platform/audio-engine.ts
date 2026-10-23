@@ -45,6 +45,8 @@ export class HtmlAudioEngine implements AudioEngine {
   /** Server refused CORS: Web Audio (EQ) cannot be used for remote streams. */
   private corsBlocked = false;
   private corsRetrySrc: string | null = null;
+  /** Origin that refused CORS (e.g. an internet radio stream); other origins get Web Audio back. */
+  private corsBlockedOrigin: string | null = null;
   onEqualizerStatus: (status: EqualizerStatus) => void = () => undefined;
 
   constructor() {
@@ -137,6 +139,7 @@ export class HtmlAudioEngine implements AudioEngine {
   /** The server does not allow CORS: continue without Web Audio. */
   private handleCorsBlocked(failed: HTMLAudioElement) {
     this.corsBlocked = true;
+    this.corsBlockedOrigin = originOf(failed.src);
     this.onEqualizerStatus('unavailable');
     if (this.graph) {
       this.fallbackWithoutCors(failed);
@@ -297,6 +300,8 @@ export class HtmlAudioEngine implements AudioEngine {
     const fade = crossfade > 0 && !outgoing.paused && Boolean(outgoing.src);
 
     this.stopFade();
+    const origin = originOf(src);
+    if (this.corsBlocked && this.corsBlockedOrigin && origin && origin !== this.corsBlockedOrigin) this.restoreCors();
     if (this.preloadedSrc !== src || incoming.src !== src) {
       incoming.src = src;
     }
@@ -333,6 +338,19 @@ export class HtmlAudioEngine implements AudioEngine {
     } else {
       this.listener.onStatus('paused');
     }
+  }
+
+  /**
+   * Back from a stream that refused CORS (internet radio) to one that allows it:
+   * request CORS again so the EQ and visualizer work.
+   */
+  private restoreCors() {
+    this.corsBlocked = false;
+    this.corsBlockedOrigin = null;
+    this.corsRetrySrc = null;
+    for (const el of this.elements) el.crossOrigin = 'anonymous';
+    if (this.eq) this.setEqualizer(this.eq);
+    else this.onEqualizerStatus('off');
   }
 
   private release(el: HTMLAudioElement) {
@@ -414,6 +432,15 @@ export class HtmlAudioEngine implements AudioEngine {
     this.stopFade();
     for (const el of this.elements) this.release(el);
     this.preloadedSrc = null;
+  }
+}
+
+function originOf(src: string): string | null {
+  try {
+    const u = new URL(src);
+    return /^https?:$/.test(u.protocol) ? u.origin : null;
+  } catch {
+    return null;
   }
 }
 

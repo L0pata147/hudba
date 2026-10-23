@@ -18,6 +18,8 @@ export function FavoriteButton({
   const toggle = useToggleFavorite();
   const name = 'title' in item ? item.title : item.name;
   const icon = size === 'lg' ? 'size-7' : size === 'md' ? 'size-5' : 'size-4';
+  // internet radio streams are not in the library
+  if ('liveStreamUrl' in item && item.liveStreamUrl) return null;
   return (
     <button
       type="button"

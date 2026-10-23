@@ -247,7 +247,7 @@ export function useLyrics(song: Song | undefined) {
   return useQuery({
     queryKey: keys.lyrics(scope, song?.id ?? ''),
     queryFn: ({ signal }) => getNavidrome().lyrics.forSong(song as Song, { signal }),
-    enabled: enabled() && Boolean(song),
+    enabled: enabled() && Boolean(song) && !song?.liveStreamUrl,
     // Found lyrics never change; "none" is asked again later (e.g. after .lrc files were added and the server rescanned).
     staleTime: (q) => (q.state.data ? Infinity : 60_000),
     retry: false,

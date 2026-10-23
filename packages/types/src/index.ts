@@ -151,6 +151,8 @@ export interface Song {
   lastPlayed?: string;
   /** When the song was added to the library (ISO date). */
   created?: string;
+  /** Internet radio: a live stream played from this URL instead of the server (no seeking, scrobbling or history). */
+  liveStreamUrl?: string;
   starred: boolean;
   starredAt?: string;
   replayGain?: {
@@ -247,9 +249,17 @@ export type RepeatMode = 'off' | 'all' | 'one';
 
 /** Where a queue item came from — used for "Playing from …" labels. */
 export interface PlaybackContext {
-  type: 'album' | 'artist' | 'playlist' | 'smart' | 'favorites' | 'search' | 'songs' | 'genre' | 'queue' | 'radio';
+  type: 'album' | 'artist' | 'playlist' | 'smart' | 'favorites' | 'search' | 'songs' | 'genre' | 'queue' | 'radio' | 'internet-radio';
   id?: ID;
   name?: string;
+}
+
+/** An internet radio station saved on the Navidrome server. */
+export interface InternetRadioStation {
+  id: ID;
+  name: string;
+  streamUrl: string;
+  homePageUrl?: string;
 }
 
 export interface QueueItem {

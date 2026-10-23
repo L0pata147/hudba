@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { create } from 'zustand';
-import type { Playlist, Song } from '@sonora/types';
+import type { InternetRadioStation, Playlist, Song } from '@sonora/types';
 
 export interface MenuItemDef {
   id: string;
@@ -35,6 +35,7 @@ export type DialogRequest =
   | { type: 'edit-playlist'; playlist: Playlist }
   | { type: 'equalizer' }
   | { type: 'smart-playlist'; id?: string }
+  | { type: 'radio-station'; station?: InternetRadioStation }
   | { type: 'confirm'; title: string; message: string; confirmLabel: string; danger?: boolean; onConfirm: () => void };
 
 interface UiState {

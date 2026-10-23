@@ -9,6 +9,7 @@ import { Artwork } from '../ui/Artwork';
 import { IconButton } from '../ui/Button';
 import { useUi } from '../../lib/ui-store';
 import { FavoriteButton } from './FavoriteButton';
+import { StationTile } from '../radio/InternetRadio';
 import { ProgressBar, TransportControls, VolumeControl } from './Controls';
 
 /** Persistent desktop player bar. */
@@ -30,7 +31,7 @@ export function PlayerBar() {
               onClick={() => setNowPlayingOpen(true)}
               className="group relative shrink-0 overflow-hidden rounded-md"
             >
-              <Artwork coverArtId={song.coverArtId} size="thumb" kind="song" className="size-14" priority />
+              {song.liveStreamUrl ? <StationTile name={song.title} className="size-14" /> : <Artwork coverArtId={song.coverArtId} size="thumb" kind="song" className="size-14" priority />}
               <span className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
                 <ChevronUp className="size-5" />
               </span>
@@ -47,7 +48,11 @@ export function PlayerBar() {
                 ) : (
                   song.artist
                 )}
-                {context?.type === 'radio' ? (
+                {context?.type === 'internet-radio' ? (
+                  <Link to="/radio" className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-accent-soft px-1.5 py-px align-middle text-[11px] font-bold text-accent hover:underline">
+                    <Radio className="size-3" /> Live
+                  </Link>
+                ) : context?.type === 'radio' ? (
                   <Link to="/radio" className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-accent-soft px-1.5 py-px align-middle text-[11px] font-bold text-accent hover:underline">
                     <Radio className="size-3" /> Radio
                   </Link>
@@ -69,7 +74,7 @@ export function PlayerBar() {
       </div>
 
       <div className="flex items-center justify-end gap-1">
-        <IconButton label="Lyrics" size="sm" active={lyricsOpen} disabled={!song} onClick={() => { setLyricsOpen(!lyricsOpen); if (!lyricsOpen) setNowPlayingOpen(true); }}>
+        <IconButton label="Lyrics" size="sm" active={lyricsOpen} disabled={!song || Boolean(song.liveStreamUrl)} onClick={() => { setLyricsOpen(!lyricsOpen); if (!lyricsOpen) setNowPlayingOpen(true); }}>
           <MicVocal className="size-[18px]" />
         </IconButton>
         <IconButton label={eqOn ? 'Equalizer (on)' : 'Equalizer'} size="sm" active={eqOn} onClick={() => openDialog({ type: 'equalizer' })}>

@@ -54,13 +54,28 @@ export function TransportControls({ size = 'md', variant = 'light' }: { size?: '
 }
 
 export function ProgressBar({ className, layout = 'inline' }: { className?: string; layout?: 'inline' | 'stacked' }) {
-  const { position, duration, buffered, hasItem } = usePlayerShallow((s) => ({
+  const { position, duration, buffered, hasItem, live } = usePlayerShallow((s) => ({
     position: s.position,
     duration: s.duration,
     buffered: s.buffered,
     hasItem: s.queue.index >= 0,
+    live: Boolean(s.queue.items[s.queue.index]?.song.liveStreamUrl),
   }));
   const [scrub, setScrub] = useState<number | null>(null);
+  if (live) {
+    // internet radio: no length, no seeking — just how long it has been playing
+    return (
+      <div className={clsx('flex items-center gap-2.5 text-[12px] text-fg-2 tabular-nums', layout === 'stacked' ? 'justify-center' : '', className)}>
+        <span className="w-10 text-right">{formatDuration(position)}</span>
+        <span className="relative h-1 flex-1 overflow-hidden rounded-full bg-accent/25" aria-hidden>
+          <span className="absolute inset-0 animate-pulse bg-accent/50" />
+        </span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-accent px-1.5 py-px text-[10.5px] font-extrabold tracking-wider text-on-accent" aria-label="Live stream">
+          LIVE
+        </span>
+      </div>
+    );
+  }
   const shown = scrub ?? position;
   const slider = (
     <Slider

@@ -130,6 +130,12 @@ export function useItemMenus() {
 
   const openSongMenu = useCallback(
     (e: React.MouseEvent | React.KeyboardEvent, song: Song, extra: { playlist?: Playlist; index?: number; queueUid?: string } = {}) => {
+      if (song.liveStreamUrl) {
+        // internet radio: nothing in the library to add, favourite or download
+        const uid = extra.queueUid;
+        if (uid) openMenuFrom(e, [{ id: 'remove-queue', label: 'Remove from queue', icon: <Trash2 />, onSelect: () => playerStore.getState().removeFromQueue(uid) }], { title: song.title, subtitle: song.artist });
+        return;
+      }
       const items: MenuItemDef[] = [
         {
           id: 'radio',

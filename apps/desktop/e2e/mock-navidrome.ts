@@ -53,13 +53,17 @@ export function wav(): Buffer {
   return buf;
 }
 
+export const MOCK_RADIO_HOST = 'http://radio.mock.test';
+
 const COVER = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><defs><linearGradient id="g" x2="1" y2="1"><stop offset="0" stop-color="#7B5CFF"/><stop offset="1" stop-color="#FF7A45"/></linearGradient></defs><rect width="300" height="300" fill="url(#g)"/></svg>`;
 
-export async function installMockNavidrome(page: Page, opts: { audioUrl?: string } = {}) {
+export async function installMockNavidrome(page: Page, opts: { audioUrl?: string; admin?: boolean; radioUrl?: string } = {}) {
   const albums = buildLibrary();
   const songs = albums.flatMap((a) => a.songs);
   const playlists: { id: string; name: string; comment?: string; songIds: string[] }[] = [];
   let playQueue: { ids: string[]; current?: string; position: number } = { ids: [], position: 0 };
+  const radios: { id: string; name: string; streamUrl: string; homePageUrl?: string }[] = [{ id: 'r1', name: 'Mock FM', streamUrl: opts.radioUrl ?? `${MOCK_RADIO_HOST}/live`, homePageUrl: `${MOCK_RADIO_HOST}/` }];
+  let radioSeq = 1;
   const audio = wav();
   const now = () => new Date().toISOString();
 
@@ -92,7 +96,7 @@ export async function installMockNavidrome(page: Page, opts: { audioUrl?: string
     switch (endpoint) {
       case 'ping': return ok();
       case 'getOpenSubsonicExtensions': return ok({ openSubsonicExtensions: [{ name: 'formPost', versions: [1] }, { name: 'songLyrics', versions: [1] }] });
-      case 'getUser': return ok({ user: { username: MOCK_USER, streamRole: true, downloadRole: true, adminRole: false } });
+      case 'getUser': return ok({ user: { username: MOCK_USER, streamRole: true, downloadRole: true, adminRole: opts.admin ?? false } });
       case 'getAlbumList2': {
         const type = p.get('type');
         let list = [...albums];
@@ -165,10 +169,22 @@ export async function installMockNavidrome(page: Page, opts: { audioUrl?: string
       case 'savePlayQueue': playQueue = { ids: p.getAll('id'), current: p.get('current') ?? undefined, position: Number(p.get('position') ?? 0) }; return ok();
       case 'getLyricsBySongId': return ok({ lyricsList: { structuredLyrics: [{ synced: true, line: [{ start: 0, value: 'First line of the song' }, { start: 1500, value: 'Second line' }] }] } });
       case 'getLyrics': return ok({ lyrics: {} });
+      case 'getInternetRadioStations': return ok({ internetRadioStations: { internetRadioStation: radios } });
+      case 'createInternetRadioStation':
+        radios.push({ id: `r${++radioSeq}`, name: p.get('name') ?? '', streamUrl: p.get('streamUrl') ?? '', homePageUrl: p.get('homepageUrl') ?? undefined });
+        return ok();
+      case 'updateInternetRadioStation': {
+        const r = radios.find((x) => x.id === p.get('id'));
+        if (r) Object.assign(r, { name: p.get('name') ?? r.name, streamUrl: p.get('streamUrl') ?? r.streamUrl, homePageUrl: p.get('homepageUrl') ?? undefined });
+        return ok();
+      }
+      case 'deleteInternetRadioStation': { const i = radios.findIndex((x) => x.id === p.get('id')); if (i >= 0) radios.splice(i, 1); return ok(); }
       default: return fail(70, `Not implemented in mock: ${endpoint}`);
     }
   };
 
   await page.route(`${MOCK_SERVER}/rest/**`, handle);
-  return { playlists, albums, songs, get playQueue() { return playQueue; } };
+  // An internet radio host: plain audio without CORS headers, like most stations.
+  await page.route(`${MOCK_RADIO_HOST}/**`, (route) => route.fulfill({ status: 200, contentType: 'audio/wav', body: audio }));
+  return { playlists, albums, songs, radios, get playQueue() { return playQueue; } };
 }
