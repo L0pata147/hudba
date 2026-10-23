@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
 import { playerStore, usePlayerShallow } from '@sonora/core';
 import { formatDuration } from '@sonora/utils';
 import { useTheme } from '../theme';
@@ -19,11 +18,14 @@ export function Seekbar() {
     playerStore.getState().seek(at(x));
     setScrub(null);
   };
+  // Handled on the JS thread: `at` and `commit` are plain functions, which must not be called from a
+  // UI-thread worklet (that takes the app down in a release build).
   const pan = Gesture.Pan()
+    .runOnJS(true)
     .minDistance(0)
-    .onBegin((e) => runOnJS(setScrub)(at(e.x)))
-    .onUpdate((e) => runOnJS(setScrub)(at(e.x)))
-    .onEnd((e) => runOnJS(commit)(e.x));
+    .onBegin((e) => setScrub(at(e.x)))
+    .onUpdate((e) => setScrub(at(e.x)))
+    .onEnd((e) => commit(e.x));
   return (
     <View>
       <GestureDetector gesture={pan}>
