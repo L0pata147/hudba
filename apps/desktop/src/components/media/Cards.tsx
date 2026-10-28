@@ -42,7 +42,7 @@ export const MediaCard = memo(function MediaCard({ to, kind, id, title, subtitle
         />
         <div
           className={clsx(
-            'absolute right-2 bottom-2 transition-all duration-200 ease-soft',
+            'absolute right-2 bottom-2 z-10 transition-all duration-200 ease-soft',
             isCurrent ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100',
           )}
         >

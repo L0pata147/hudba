@@ -9,6 +9,7 @@ import {
   useAlbumList,
   useArtists,
   useContextPlayState,
+  useDailyMixes,
   useHistory,
   usePlaylists,
   useSession,
@@ -17,6 +18,7 @@ import {
 import { greeting, uniqueBy } from '@sonora/utils';
 import { AlbumCard, ArtistCard, PlaylistCard } from '../components/media/Cards';
 import { Shelf } from '../components/media/Shelf';
+import { MixCard } from '../components/mixes/MixCard';
 import { Artwork } from '../components/ui/Artwork';
 import { PlayButton } from '../components/ui/PlayButton';
 import { ErrorState, EmptyState } from '../components/ui/States';
@@ -75,6 +77,7 @@ export function HomePage() {
   const frequent = useAlbumList('frequent', 20);
   const random = useAlbumList('random', 20);
   const starred = useStarred();
+  const dailyMixes = useDailyMixes();
   const playlists = usePlaylists();
   const artists = useArtists();
   const history = useHistory((s) => s.entries);
@@ -143,6 +146,12 @@ export function HomePage() {
             message="Add music to your Navidrome library folder and run a scan — it will show up here."
           />
         )}
+
+        {showMusic && (dailyMixes.loading ? <ShelfSkeleton /> : dailyMixes.mixes.length > 0 && (
+          <Shelf title="Made for you" subtitle="Daily mixes from your library, new every day">
+            {dailyMixes.mixes.map((m, i) => <MixCard key={m.id} mix={m} index={i} />)}
+          </Shelf>
+        ))}
 
         {showMusic && (recent.isPending ? <ShelfSkeleton /> : recent.data && recent.data.length > 0 && (
           <Shelf title="Recently played" to="/library/albums?sort=recent">

@@ -249,7 +249,7 @@ export type RepeatMode = 'off' | 'all' | 'one';
 
 /** Where a queue item came from — used for "Playing from …" labels. */
 export interface PlaybackContext {
-  type: 'album' | 'artist' | 'playlist' | 'smart' | 'favorites' | 'search' | 'songs' | 'genre' | 'queue' | 'radio' | 'internet-radio';
+  type: 'album' | 'artist' | 'playlist' | 'smart' | 'favorites' | 'search' | 'songs' | 'genre' | 'queue' | 'radio' | 'internet-radio' | 'mix';
   id?: ID;
   name?: string;
 }

@@ -6,6 +6,7 @@ import { downloadsStore, resumeDownloads } from './downloads';
 import { playerStore } from './playback';
 import { radioStore } from './radio-instance';
 import { smartPlaylistsStore } from './smart-playlists';
+import { dailyMixesStore } from './daily-mixes';
 
 /**
  * Configures platform adapters and rehydrates every persisted store.
@@ -22,6 +23,7 @@ export async function bootstrapSonora(config: Partial<PlatformConfig>): Promise<
     playerStore.persist.rehydrate(),
     radioStore.persist.rehydrate(),
     smartPlaylistsStore.persist.rehydrate(),
+    dailyMixesStore.persist.rehydrate(),
   ]);
   // First launch: apply the default volume preference.
   if (!(await Promise.resolve(config.storage?.getItem('sonora.player')))) {
