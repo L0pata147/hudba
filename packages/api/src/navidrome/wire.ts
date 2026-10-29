@@ -46,6 +46,8 @@ export interface WireAlbum {
   songCount?: number;
   duration?: number;
   year?: number;
+  releaseDate?: WireItemDate;
+  originalReleaseDate?: WireItemDate;
   genre?: string;
   genres?: { name: string }[];
   created?: string;
@@ -53,6 +55,13 @@ export interface WireAlbum {
   played?: string;
   starred?: string;
   isCompilation?: boolean;
+}
+
+/** OpenSubsonic date: any part may be missing. */
+export interface WireItemDate {
+  year?: number;
+  month?: number;
+  day?: number;
 }
 
 export interface WireAlbumWithSongs extends WireAlbum {
@@ -73,6 +82,8 @@ export interface WireSong {
   track?: number;
   discNumber?: number;
   year?: number;
+  releaseDate?: WireItemDate;
+  originalReleaseDate?: WireItemDate;
   genre?: string;
   genres?: { name: string }[];
   moods?: string[];

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { HistoryEntry, Song } from '@sonora/types';
 import { lazyStorage } from './platform';
+import { songKey } from './song-key';
 import { sessionStore } from './session';
 import { historyStore } from './history';
 import { fetchLibrarySongs, keys, useLibrarySongs } from './queries';
@@ -132,7 +133,7 @@ export function buildDailyMixes(library: readonly Song[], history: readonly Hist
   const size = opts.size ?? 50;
   const max = opts.max ?? 6;
   const now = opts.now ?? Date.now();
-  const songs = library.filter((s) => !s.liveStreamUrl);
+  const all = library.filter((s) => !s.liveStreamUrl);
 
   // how much you like each song: server play count, recent plays on this device, favourites, ratings
   const recentPlays = new Map<string, number>();
@@ -143,11 +144,27 @@ export function buildDailyMixes(library: readonly Song[], history: readonly Hist
     if (now - at < DAY_MS) playedToday.add(e.song.id);
   }
   const weight = new Map<string, number>();
-  for (const s of songs) {
+  for (const s of all) {
     const w = (s.playCount ?? 0) + 3 * (recentPlays.get(s.id) ?? 0) + (s.starred ? 4 : 0) + ((s.userRating ?? 0) >= 4 ? 3 : 0);
     if (w > 0) weight.set(s.id, w);
     const last = s.lastPlayed ? Date.parse(s.lastPlayed) : 0;
     if (last && now - last < DAY_MS) playedToday.add(s.id);
+  }
+  // copies of the same song count as one: the most played copy stands for all of them
+  const byKey = new Map<string, Song[]>();
+  for (const s of all) {
+    const k = songKey(s);
+    const list = byKey.get(k);
+    if (list) list.push(s);
+    else byKey.set(k, [s]);
+  }
+  const songs: Song[] = [];
+  for (const copies of byKey.values()) {
+    const best = copies.reduce((a, b) => ((weight.get(b.id) ?? 0) > (weight.get(a.id) ?? 0) ? b : a));
+    const total = copies.reduce((n, c) => n + (weight.get(c.id) ?? 0), 0);
+    if (total > 0) weight.set(best.id, total);
+    if (copies.some((c) => playedToday.has(c.id))) playedToday.add(best.id);
+    songs.push(best);
   }
   const weightOf = (s: Song) => weight.get(s.id) ?? 0;
   if (!weight.size) return [];
@@ -245,6 +262,9 @@ export const dailyMixesStore = createStore<DailyMixesState>()(
     }),
     {
       name: 'sonora.daily-mixes',
+      // v1: copies of the same song count once; mixes saved before that are made again
+      version: 1,
+      migrate: () => ({ scope: '', day: '', salt: 0, mixes: [] }) as unknown as DailyMixesState,
       storage: createJSONStorage(() => lazyStorage),
       skipHydration: true,
       partialize: ({ scope, day, salt, mixes }) => ({ scope, day, salt, mixes }),

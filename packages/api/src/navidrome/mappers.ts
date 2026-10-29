@@ -20,6 +20,7 @@ import type {
   WireArtistRef,
   WireArtistWithAlbums,
   WireGenre,
+  WireItemDate,
   WirePlaylist,
   WirePlaylistWithSongs,
   WireSong,
@@ -65,6 +66,16 @@ export function mapArtistInfo(i: WireArtistInfo): ArtistInfo {
   };
 }
 
+/**
+ * The year, unless it is the 1 January 1970 placeholder (Unix time 0) that some
+ * download and tagging tools write when they don't know the date.
+ */
+export function cleanYear(year: number | undefined, ...dates: (WireItemDate | undefined)[]): number | undefined {
+  if (!year) return undefined;
+  if (year === 1970 && dates.some((d) => d?.year === 1970 && d.month === 1 && d.day === 1)) return undefined;
+  return year;
+}
+
 export function mapAlbum(a: WireAlbum): Album {
   const artist = a.displayArtist || a.artist || 'Unknown Artist';
   const genres = a.genres?.length ? a.genres.map((g) => g.name) : a.genre ? [a.genre] : [];
@@ -77,7 +88,7 @@ export function mapAlbum(a: WireAlbum): Album {
     coverArtId: nonEmpty(a.coverArt),
     songCount: a.songCount ?? 0,
     duration: a.duration ?? 0,
-    year: a.year || undefined,
+    year: cleanYear(a.year, a.releaseDate, a.originalReleaseDate),
     genre: nonEmpty(a.genre),
     genres,
     created: nonEmpty(a.created),
@@ -106,7 +117,7 @@ export function mapSong(s: WireSong): Song {
     coverArtId: nonEmpty(s.coverArt),
     track: s.track || undefined,
     discNumber: s.discNumber || undefined,
-    year: s.year || undefined,
+    year: cleanYear(s.year, s.releaseDate, s.originalReleaseDate),
     genre: nonEmpty(s.genre),
     genres: s.genres?.length ? s.genres.map((g) => g.name).filter(Boolean) : s.genre ? [s.genre] : undefined,
     moods: s.moods?.length ? s.moods : undefined,

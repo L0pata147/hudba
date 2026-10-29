@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { useStore } from 'zustand';
 import type { Song } from '@sonora/types';
 import { lazyStorage } from './platform';
+import { uniqueSongs } from './song-key';
 
 /**
  * Smart playlists: saved rules (genres, years, favourites, play counts, when a
@@ -125,7 +126,8 @@ export function evaluateSmartPlaylist(songs: readonly Song[], rules: SmartRules,
       picked.sort((a, b) => a.artist.localeCompare(b.artist) || (a.album ?? '').localeCompare(b.album ?? '') || (a.track ?? 0) - (b.track ?? 0));
       break;
   }
-  return picked.slice(0, Math.max(1, rules.limit));
+  // the same song in several files (album, single, compilation…) only once
+  return uniqueSongs(picked).slice(0, Math.max(1, rules.limit));
 }
 
 /** One line describing the rules, e.g. "Rock, Pop · 1990–1999 · favorites · most played · 100 songs". */

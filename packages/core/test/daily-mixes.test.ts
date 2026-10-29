@@ -72,3 +72,27 @@ describe('daily mixes', () => {
     expect(localDay(new Date(2026, 0, 5))).toBe('2026-01-05');
   });
 });
+
+describe('same song in several files', () => {
+  it('recognises copies across albums, remasters, live tags and featured artists', async () => {
+    const { songKey } = await import('../src/song-key');
+    const key = (artist: string, title: string) => songKey({ artist, title });
+    expect(key('Queen', 'Bohemian Rhapsody')).toBe(key('Queen', 'Bohemian Rhapsody - Remastered 2011'));
+    expect(key('Queen', 'Bohemian Rhapsody')).toBe(key('queen', 'Bohemian Rhapsody (Remastered)'));
+    expect(key('Daft Punk', 'Get Lucky')).toBe(key('Daft Punk, Pharrell Williams', 'Get Lucky (feat. Pharrell Williams)'));
+    expect(key('Kryštof', 'Ty a já')).toBe(key('Krystof', 'Ty a ja'));
+    expect(key('Queen', 'Bohemian Rhapsody')).not.toBe(key('Queen', "Don't Stop Me Now"));
+    expect(key('Queen', 'Intro')).not.toBe(key('Muse', 'Intro'));
+  });
+
+  it('puts one copy in the mixes, with the plays of all copies', () => {
+    const lib = library();
+    // every Rock song also on a "Greatest Hits" album, never played there
+    const copies = lib.filter((s) => s.genre === 'Rock').map((s) => ({ ...s, id: `${s.id}-gh`, albumId: 'gh', playCount: 0, title: `${s.title} (Remastered)` }));
+    const mixes = buildDailyMixes([...lib, ...copies], [], { day: '2026-06-01', now: NOW, size: 30 });
+    const titles = mixes.flatMap((m) => m.songs.map((s) => s.title.replace(' (Remastered)', '')));
+    expect(new Set(titles).size).toBe(titles.length);
+    // the copies are not "new to you" in Discovery either
+    expect(mixes.find((m) => m.id === 'discover')!.songs.some((s) => s.id.endsWith('-gh') && Number(s.id.split('-')[1]) < 20)).toBe(false);
+  });
+});
