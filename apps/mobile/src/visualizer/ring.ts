@@ -156,13 +156,6 @@ export function stepCommon(s: RingState, input: StepInput, dt: number): number {
   return step;
 }
 
-/** Advances the animation by `dt` seconds and returns the ring paths for one frame. */
-export function stepRing(s: RingState, input: StepInput, dt: number, width: number, height: number): RingFrame {
-  'worklet';
-  const step = stepCommon(s, input, dt);
-  return ringGeometry(s, input.reduced, step, width, height);
-}
-
 /** The neon ring for the current shared state (echo history and particles live here too). */
 export function ringGeometry(s: RingState, reduced: boolean, step: number, width: number, height: number): RingFrame {
   'worklet';
@@ -213,6 +206,17 @@ export function ringGeometry(s: RingState, reduced: boolean, step: number, width
     }
   }
   return { layers, echoes, particles: [p0, p1], pulse, kick: s.kick, bass: s.bass, shakeX, shakeY };
+}
+
+/**
+ * Advances the animation by `dt` seconds and returns the ring paths for one frame.
+ * Defined after `ringGeometry`: a worklet captures the functions it calls when it
+ * is created, so calling one declared further down crashes on the UI thread.
+ */
+export function stepRing(s: RingState, input: StepInput, dt: number, width: number, height: number): RingFrame {
+  'worklet';
+  const step = stepCommon(s, input, dt);
+  return ringGeometry(s, input.reduced, step, width, height);
 }
 
 /**
