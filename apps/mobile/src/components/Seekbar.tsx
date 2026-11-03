@@ -8,7 +8,7 @@ import { T } from './ui';
 
 export function Seekbar() {
   const t = useTheme();
-  const { position, duration } = usePlayerShallow((s) => ({ position: s.position, duration: s.duration }));
+  const { position, duration, live } = usePlayerShallow((s) => ({ position: s.position, duration: s.duration, live: Boolean(s.queue.items[s.queue.index]?.song.liveStreamUrl) }));
   const [width, setWidth] = useState(1);
   const [scrub, setScrub] = useState<number | null>(null);
   const shown = scrub ?? position;
@@ -26,6 +26,22 @@ export function Seekbar() {
     .onBegin((e) => setScrub(at(e.x)))
     .onUpdate((e) => setScrub(at(e.x)))
     .onEnd((e) => commit(e.x));
+  if (live) {
+    // internet radio: no length, no seeking — how long it has been playing and a LIVE badge
+    return (
+      <View style={{ gap: 6 }}>
+        <View style={{ height: 28, justifyContent: 'center' }}>
+          <View style={{ height: 4, borderRadius: 2, backgroundColor: t.accent, opacity: 0.5 }} />
+        </View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <T variant="caption" dim={1}>{formatDuration(position)}</T>
+          <View accessibilityLabel="Live stream" style={{ backgroundColor: t.accent, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 1 }}>
+            <T style={{ color: t.onAccent, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>LIVE</T>
+          </View>
+        </View>
+      </View>
+    );
+  }
   return (
     <View>
       <GestureDetector gesture={pan}>

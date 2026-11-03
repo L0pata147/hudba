@@ -12,7 +12,7 @@ export interface SheetAction {
 interface SheetState {
   sheet: { title: string; subtitle?: string; coverArtId?: string; actions: SheetAction[] } | null;
   addToPlaylist: Song[] | null;
-  prompt: { title: string; initial?: string; confirm: string; onSubmit: (value: string) => void } | null;
+  prompt: { title: string; initial?: string; placeholder?: string; url?: boolean; confirm: string; onSubmit: (value: string) => void } | null;
   open(sheet: NonNullable<SheetState['sheet']>): void;
   close(): void;
   openAddToPlaylist(songs: Song[]): void;

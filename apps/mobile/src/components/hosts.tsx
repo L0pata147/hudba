@@ -122,10 +122,13 @@ export function PromptHost() {
           value={value}
           onChangeText={setValue}
           autoFocus
-          placeholder="Name"
+          placeholder={prompt?.placeholder ?? 'Name'}
           placeholderTextColor={t.textMuted}
+          keyboardType={prompt?.url ? 'url' : 'default'}
+          autoCapitalize={prompt?.url ? 'none' : 'sentences'}
+          autoCorrect={!prompt?.url}
           onSubmitEditing={submit}
-          accessibilityLabel="Name"
+          accessibilityLabel={prompt?.title ?? 'Name'}
           style={{ height: 52, borderRadius: 10, backgroundColor: t.surfaceHover, color: t.textPrimary, paddingHorizontal: 16, fontSize: 16 }}
         />
         <Button title={prompt?.confirm ?? 'OK'} onPress={submit} disabled={!value.trim()} />

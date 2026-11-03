@@ -54,6 +54,11 @@ export function useSongSheet() {
   const { removeSongs } = usePlaylistMutations();
   const ic = t.textSecondary;
   return (song: Song, extra: { playlist?: Playlist; index?: number; actions?: SheetAction[] } = {}) => {
+    if (song.liveStreamUrl) {
+      // internet radio: nothing to add, favourite or download
+      open({ title: song.title, subtitle: song.artist, actions: extra.actions ?? [] });
+      return;
+    }
     const starred = resolveStarred(favoriteOverridesStore.getState().overrides, 'song', song);
     const rec = downloadsStore.getState().records[song.id];
     const actions: SheetAction[] = [

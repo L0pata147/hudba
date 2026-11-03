@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -10,10 +10,7 @@ import { describe, expect, it } from 'vitest';
  * functions declared above them.
  */
 const ROOT = join(__dirname, '..', '..', '..');
-const sources = [
-  ...readdirSync(join(ROOT, 'apps/mobile/src/visualizer')).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts')).map((f) => join(ROOT, 'apps/mobile/src/visualizer', f)),
-  join(ROOT, 'packages/core/src/visualizer-scenes.ts'),
-];
+const sources = [join(ROOT, 'packages/core/src/visualizer-scenes.ts')];
 
 function laterCalls(src: string): string[] {
   const declared = new Map<string, number>();

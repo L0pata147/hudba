@@ -3,14 +3,16 @@ import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import { Plus } from 'lucide-react-native';
-import { useArtists, useInfiniteAlbums, usePlaylistMutations, usePlaylists } from '@sonora/core';
+import { playerStore, useArtists, useInfiniteAlbums, useInfiniteSongs, usePlaylistMutations, usePlaylists } from '@sonora/core';
 import { pluralize } from '@sonora/utils';
 import { Artwork, EmptyState, ErrorState, RowsSkeleton, T } from '../../src/components/ui';
 import { TopInset } from '../../src/components/Screen';
 import { useSheet } from '../../src/sheet-store';
+import { TrackRow } from '../../src/components/media';
+import { useSongSheet } from '../../src/actions';
 import { useTheme } from '../../src/theme';
 
-type Tab = 'playlists' | 'artists' | 'albums';
+type Tab = 'playlists' | 'songs' | 'artists' | 'albums';
 
 function Row({ title, subtitle, coverArtId, uri, round, kind, onPress }: { title: string; subtitle: string; coverArtId?: string; uri?: string; round?: boolean; kind: 'album' | 'artist' | 'playlist'; onPress: () => void }) {
   const t = useTheme();
@@ -33,9 +35,12 @@ export default function Library() {
   const artists = useArtists();
   const albums = useInfiniteAlbums('alphabeticalByName');
   const albumItems = useMemo(() => albums.data?.pages.flat() ?? [], [albums.data]);
+  const songs = useInfiniteSongs();
+  const songItems = useMemo(() => songs.data?.pages.flat() ?? [], [songs.data]);
+  const openSong = useSongSheet();
   const { create } = usePlaylistMutations();
   const openPrompt = useSheet((s) => s.openPrompt);
-  const active = tab === 'playlists' ? playlists : tab === 'artists' ? artists : albums;
+  const active = tab === 'playlists' ? playlists : tab === 'songs' ? songs : tab === 'artists' ? artists : albums;
 
   return (
     <View style={{ flex: 1 }}>
@@ -47,7 +52,7 @@ export default function Library() {
           </Pressable>
         </View>
         <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 12 }} accessibilityRole="tablist">
-          {(['playlists', 'artists', 'albums'] as Tab[]).map((x) => (
+          {(['playlists', 'songs', 'artists', 'albums'] as Tab[]).map((x) => (
             <Pressable key={x} onPress={() => setTab(x)} accessibilityRole="tab" accessibilityState={{ selected: tab === x }} style={{ paddingHorizontal: 14, height: 34, borderRadius: 17, justifyContent: 'center', backgroundColor: tab === x ? t.textPrimary : t.surfaceHover }}>
               <T style={{ fontWeight: '600', fontSize: 13, color: tab === x ? t.bg : t.textPrimary }}>{x[0]!.toUpperCase() + x.slice(1)}</T>
             </Pressable>
@@ -64,6 +69,22 @@ export default function Library() {
           keyExtractor={(p) => p.id}
           ListEmptyComponent={<EmptyState title="No playlists yet" message="Tap + to create your first playlist." />}
           renderItem={({ item }) => <Row kind="playlist" title={item.name} subtitle={`Playlist · ${pluralize(item.songCount, 'song')}`} coverArtId={item.coverArtId} onPress={() => router.push(`/playlist/${item.id}`)} />}
+        />
+      ) : tab === 'songs' ? (
+        <FlashList
+          data={songItems}
+          keyExtractor={(s) => s.id}
+          onEndReached={() => songs.hasNextPage && !songs.isFetchingNextPage && void songs.fetchNextPage()}
+          onEndReachedThreshold={0.6}
+          ListEmptyComponent={<EmptyState title="No songs yet" message="Add music to your Navidrome library and run a scan." />}
+          renderItem={({ item, index }) => (
+            <TrackRow
+              song={item}
+              // the loaded songs become the queue, starting with this one
+              onPress={() => playerStore.getState().playSongs(songItems, index, { context: { type: 'songs', name: 'Songs' } })}
+              onMore={() => openSong(item)}
+            />
+          )}
         />
       ) : tab === 'artists' ? (
         <FlashList

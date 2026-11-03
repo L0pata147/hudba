@@ -6,6 +6,7 @@ import { Artwork, Button, PlayButton, T } from '../../src/components/ui';
 import { TopInset } from '../../src/components/Screen';
 import { startRadio } from '../../src/actions';
 import { useTheme } from '../../src/theme';
+import { InternetRadioSection } from '../../src/components/InternetRadio';
 
 const VARIETY: { value: RadioVariety; label: string; hint: string; Icon: typeof Target }[] = [
   { value: 'close', label: 'Familiar', hint: 'Stays close to the seed', Icon: Target },
@@ -25,13 +26,14 @@ function StartRadio() {
         <RadioIcon color={t.accent} size={32} />
         <T variant="h1">Radio</T>
         <T dim={1}>Pick a starting point and Overtone keeps playing similar music from your library — endlessly and without repeats.</T>
-        {cur ? (
+        {cur && !cur.song.liveStreamUrl ? (
           <Button
             title={`Start from “${cur.song.title}”`}
             onPress={() => void startRadio({ kind: 'song', id: cur.song.id, name: cur.song.title, subtitle: cur.song.artist, coverArtId: cur.song.coverArtId }, cur.song)}
           />
         ) : null}
       </View>
+      <InternetRadioSection />
       {recent.length ? (
         <View style={{ gap: 8 }}>
           <T variant="h2">From recently played</T>

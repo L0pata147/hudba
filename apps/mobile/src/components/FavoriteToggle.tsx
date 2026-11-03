@@ -9,6 +9,8 @@ export function FavoriteToggle({ kind, item, size = 26 }: { kind: 'song' | 'albu
   const t = useTheme();
   const starred = useIsStarred(kind, item);
   const toggle = useToggleFavorite();
+  // internet radio streams are not in the library
+  if ('liveStreamUrl' in item && item.liveStreamUrl) return null;
   return (
     <Pressable
       hitSlop={10}
