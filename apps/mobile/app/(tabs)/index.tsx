@@ -3,12 +3,13 @@ import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Settings } from 'lucide-react-native';
-import { playerStore, recentSongs, useAlbumList, useArtists, useHistory, usePlaylists, useSession, useStarred } from '@sonora/core';
+import { playerStore, recentSongs, useAlbumList, useArtists, useDailyMixes, useHistory, usePlaylists, useSession, useStarred } from '@sonora/core';
 import { greeting } from '@sonora/utils';
 import { AlbumCard, ArtistCard, Card, PlaylistCard, Shelf } from '../../src/components/media';
 import { ErrorState, Skeleton, T, Artwork, Tap } from '../../src/components/ui';
 import { TopInset } from '../../src/components/Screen';
 import { useTheme } from '../../src/theme';
+import { MixArt } from '../../src/components/Tiles';
 
 export default function Home() {
   const t = useTheme();
@@ -22,6 +23,7 @@ export default function Home() {
   const playlists = usePlaylists();
   const artists = useArtists();
   const history = useHistory((s) => s.entries);
+  const mixes = useDailyMixes();
   const played = useMemo(() => recentSongs(history, 12), [history]);
   const quick = useMemo(() => [...(recent.data ?? []), ...(newest.data ?? [])].filter((a, i, arr) => arr.findIndex((x) => x.id === a.id) === i).slice(0, 6), [recent.data, newest.data]);
   const refreshing = recent.isRefetching || newest.isRefetching;
@@ -50,6 +52,27 @@ export default function Home() {
               ))}
         </View>
       </TopInset>
+      {mixes.loading ? (
+        <View style={{ paddingHorizontal: 16, gap: 12 }}>
+          <T variant="h2">Made for you</T>
+          <View style={{ flexDirection: 'row', gap: 14 }}>
+            <Skeleton style={{ width: 150, height: 150 }} />
+            <Skeleton style={{ width: 150, height: 150 }} />
+          </View>
+        </View>
+      ) : (
+        <Shelf
+          title="Made for you"
+          items={mixes.mixes}
+          keyOf={(m) => m.id}
+          render={(m) => (
+            <Tap onPress={() => router.push(`/mix/${encodeURIComponent(m.id)}`)} onLongPress={() => playerStore.getState().playSongs(m.songs, 0, { context: { type: 'mix', id: m.id, name: m.name } })} accessibilityRole="button" accessibilityLabel={`${m.name}, ${m.description}`} style={{ width: 150 }}>
+              <MixArt name={m.name} coverArtIds={m.coverArtIds} index={mixes.mixes.indexOf(m)} size={150} />
+              <T variant="caption" dim={1} numberOfLines={2} style={{ marginTop: 8 }}>{m.description}</T>
+            </Tap>
+          )}
+        />
+      )}
       <Shelf title="Recently played" items={recent.data ?? []} keyOf={(a) => a.id} render={(a) => <AlbumCard album={a} />} />
       <Shelf
         title="Jump back in"

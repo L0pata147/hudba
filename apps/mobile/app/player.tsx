@@ -12,6 +12,7 @@ import { Seekbar } from '../src/components/Seekbar';
 import { FavoriteToggle } from '../src/components/FavoriteToggle';
 import { useSongSheet } from '../src/actions';
 import { useTheme } from '../src/theme';
+import { SleepTimerButton } from '../src/components/SleepTimerButton';
 
 function LyricsPanel() {
   const item = useCurrentItem();
@@ -125,6 +126,7 @@ export default function Player() {
               <MicVocal color={lyrics ? t.accent : t.textSecondary} size={22} />
             </Pressable>
           )}
+          <SleepTimerButton />
           <Pressable onPress={() => router.push('/queue')} accessibilityRole="button" accessibilityLabel="Queue" hitSlop={10}>
             <ListMusic color={t.textSecondary} size={22} />
           </Pressable>

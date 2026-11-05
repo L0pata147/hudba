@@ -21,3 +21,4 @@ export * from './smart-playlists';
 export * from './internet-radio';
 export * from './daily-mixes';
 export * from './song-key';
+export * from './sleep-timer';

@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
-import { Plus } from 'lucide-react-native';
-import { playerStore, useArtists, useInfiniteAlbums, useInfiniteSongs, usePlaylistMutations, usePlaylists } from '@sonora/core';
+import { DownloadCloud, History, ListMusic, Plus, Sparkles } from 'lucide-react-native';
+import { describeSmartRules, playerStore, SMART_TEMPLATES, smartPlaylistsStore, useArtists, useInfiniteAlbums, useInfiniteSongs, usePlaylistMutations, usePlaylists, useSmartPlaylists } from '@sonora/core';
 import { pluralize } from '@sonora/utils';
 import { Artwork, EmptyState, ErrorState, RowsSkeleton, T } from '../../src/components/ui';
 import { TopInset } from '../../src/components/Screen';
@@ -40,6 +40,27 @@ export default function Library() {
   const openSong = useSongSheet();
   const { create } = usePlaylistMutations();
   const openPrompt = useSheet((s) => s.openPrompt);
+  const openSheet = useSheet((s) => s.open);
+  const smart = useSmartPlaylists((s) => s.playlists);
+  const newPlaylist = () => openPrompt({ title: 'New playlist', confirm: 'Create', onSubmit: (name) => create.mutate({ name }, { onSuccess: (p) => router.push(`/playlist/${p.id}`) }) });
+  const newSmart = () =>
+    openSheet({
+      title: 'New smart playlist',
+      subtitle: 'Picks songs from your whole library and keeps itself up to date',
+      actions: SMART_TEMPLATES.map((tpl) => ({
+        label: tpl.name,
+        icon: <Sparkles color={t.textSecondary} size={22} />,
+        onPress: () => router.push(`/smart/${smartPlaylistsStore.getState().create(tpl.name, tpl.rules).id}`),
+      })),
+    });
+  const create_ = () =>
+    openSheet({
+      title: 'Create',
+      actions: [
+        { label: 'Playlist', icon: <ListMusic color={t.textSecondary} size={22} />, onPress: () => setTimeout(newPlaylist, 400) },
+        { label: 'Smart playlist', icon: <Sparkles color={t.textSecondary} size={22} />, onPress: () => setTimeout(newSmart, 400) },
+      ],
+    });
   const active = tab === 'playlists' ? playlists : tab === 'songs' ? songs : tab === 'artists' ? artists : albums;
 
   return (
@@ -47,9 +68,20 @@ export default function Library() {
       <TopInset>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16 }}>
           <T variant="h1">Your Library</T>
-          <Pressable onPress={() => openPrompt({ title: 'New playlist', confirm: 'Create', onSubmit: (name) => create.mutate({ name }, { onSuccess: (p) => router.push(`/playlist/${p.id}`) }) })} accessibilityRole="button" accessibilityLabel="Create playlist" hitSlop={10}>
+          <Pressable onPress={create_} accessibilityRole="button" accessibilityLabel="Create playlist" hitSlop={10}>
             <Plus color={t.textPrimary} size={26} />
           </Pressable>
+        </View>
+        <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12 }}>
+          {[
+            { label: 'History', Icon: History, to: '/history' },
+            { label: 'Downloaded', Icon: DownloadCloud, to: '/downloads' },
+          ].map(({ label, Icon, to }) => (
+            <Pressable key={to} onPress={() => router.push(to)} accessibilityRole="button" style={({ pressed }) => ({ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, paddingHorizontal: 12, borderRadius: 10, backgroundColor: pressed ? t.surfaceActive : t.surface })}>
+              <Icon color={t.accent} size={18} />
+              <T style={{ fontWeight: '700', fontSize: 14 }}>{label}</T>
+            </Pressable>
+          ))}
         </View>
         <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 12 }} accessibilityRole="tablist">
           {(['playlists', 'songs', 'artists', 'albums'] as Tab[]).map((x) => (
@@ -67,7 +99,24 @@ export default function Library() {
         <FlashList
           data={playlists.data ?? []}
           keyExtractor={(p) => p.id}
-          ListEmptyComponent={<EmptyState title="No playlists yet" message="Tap + to create your first playlist." />}
+          ListHeaderComponent={
+            smart.length ? (
+              <View>
+                {smart.map((p) => (
+                  <Pressable key={p.id} onPress={() => router.push(`/smart/${p.id}`)} accessibilityRole="button" accessibilityLabel={`${p.name}, smart playlist`} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: pressed ? t.surfaceHover : 'transparent' })}>
+                    <View style={{ width: 60, height: 60, borderRadius: 6, backgroundColor: '#8B6BFF', alignItems: 'center', justifyContent: 'center' }}>
+                      <Sparkles color="#fff" size={26} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <T numberOfLines={1} style={{ fontWeight: '600' }}>{p.name}</T>
+                      <T variant="caption" dim={1} numberOfLines={1}>Smart playlist · {describeSmartRules(p.rules)}</T>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={smart.length ? null : <EmptyState title="No playlists yet" message="Tap + to create a playlist or a smart playlist." />}
           renderItem={({ item }) => <Row kind="playlist" title={item.name} subtitle={`Playlist · ${pluralize(item.songCount, 'song')}`} coverArtId={item.coverArtId} onPress={() => router.push(`/playlist/${item.id}`)} />}
         />
       ) : tab === 'songs' ? (

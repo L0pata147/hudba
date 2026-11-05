@@ -20,6 +20,7 @@ export function CollectionHeader({
   onMore,
   extra,
   kind = 'album',
+  art,
 }: {
   title: string;
   subtitle?: string;
@@ -33,13 +34,15 @@ export function CollectionHeader({
   onMore?: () => void;
   extra?: ReactNode;
   kind?: 'album' | 'artist' | 'playlist';
+  /** replaces the cover (mixes, genres, smart playlists…) */
+  art?: ReactNode;
 }) {
   const t = useTheme();
   return (
     <View>
       <LinearGradient colors={[t.accentSoft, 'transparent']} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 380 }} />
       <View style={{ alignItems: 'center', paddingTop: 72, paddingHorizontal: 24 }}>
-        <Artwork coverArtId={coverArtId} uri={uri} kind={kind} round={round} size={600} style={{ width: 230, height: 230, borderRadius: round ? 115 : 10 }} />
+        {art ?? <Artwork coverArtId={coverArtId} uri={uri} kind={kind} round={round} size={600} style={{ width: 230, height: 230, borderRadius: round ? 115 : 10 }} />}
       </View>
       <View style={{ paddingHorizontal: 16, marginTop: 20, gap: 4 }}>
         <T variant="h1" numberOfLines={2} accessibilityRole="header">{title}</T>
